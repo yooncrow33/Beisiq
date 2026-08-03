@@ -6,10 +6,12 @@ import com.fw.main.api.io.Io;
 import com.fw.internal.sys.operator.OperatorManager;
 import com.fw.main.*;
 import com.fw.main.api.io.IoInterface;
+import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
 
 import java.awt.*;
+import java.util.List;
 import java.util.Properties;
 
 public class Test extends Base {
@@ -50,7 +52,12 @@ public class Test extends Base {
 
     @Override
     public void setConsole(Base.ConsoleInit c) {
-
+        c.registerConsoleCMD(new ConsoleCMD() {
+            @Override
+            public void CMD(List<String> args) {
+                //.....
+            }
+        });
     }
 
     @Override
