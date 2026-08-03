@@ -25,12 +25,22 @@ import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 
 public abstract class Base extends Canvas implements IFrameSize {
-    public JFrame frame = new JFrame("Civitas Engine");
+    private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
+
+    public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
     private Thread renderThread;
     private volatile boolean running = false;
+    private volatile long renderPausedUntilNanos = 0L;
     private boolean useExperimentalRender;
+
+    private int fpsCounter = 0;
+    private volatile int currentFps = 0;
+    private volatile double currentFrameTimeMs = 0;
+    private volatile double currentRenderWorkTimeMs = 0;
+    private long lastFpsCheckTime = System.nanoTime();
+    private long accumulatedRenderWorkNanos = 0L;
 
     private final Mouse mouse = new Mouse(this);
     public final Mouse getMouse() { return mouse; }
@@ -39,7 +49,6 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final OperatorManager operatorManager = new OperatorManager();
 
     private BufferStrategy bufferStrategy;
-    private VolatileImage vramBuffer;
 
     private final ArrayList<Call> drawCalls = new ArrayList<>(1024);
     private final ArrayList<Integer> drawCallXs = new ArrayList<>(1024);
@@ -68,8 +77,12 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         this.setPreferredSize(new Dimension(Core.get().initWindowWidth, Core.get().getInitWindowHeight()));
         setFocusable(true);
+        setIgnoreRepaint(true);
 
-        viewMetrics = new ViewMetrics(this);
+        viewMetrics = new ViewMetrics(
+                this,
+                Core.get().isUseIntegerPhysicalScaling()
+        );
 
         frame.add(this);
         frame.pack();
@@ -93,6 +106,21 @@ public abstract class Base extends Canvas implements IFrameSize {
             @Override
             public void componentResized(ComponentEvent e) {
                 viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
+            }
+        });
+
+        frame.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
             }
         });
 
@@ -257,85 +285,166 @@ public abstract class Base extends Canvas implements IFrameSize {
     }
 
     private void renderLoop() {
-        if (bufferStrategy == null) return;
+        if (System.nanoTime() < renderPausedUntilNanos) return;
+
+        BufferStrategy strategy = bufferStrategy;
+        if (strategy == null || !isDisplayable()) return;
+
         int currentWidth = getWidth();
         int currentHeight = getHeight();
         if (currentWidth <= 0 || currentHeight <= 0) return;
 
-        if (vramBuffer == null ||
-                vramBuffer.getWidth() != currentWidth ||
-                vramBuffer.getHeight() != currentHeight ||
-                vramBuffer.validate(getGraphicsConfiguration()) == VolatileImage.IMAGE_INCOMPATIBLE) {
-            vramBuffer = getGraphicsConfiguration().createCompatibleVolatileImage(currentWidth, currentHeight);
+        ViewMetrics.Snapshot metrics = viewMetrics.getSnapshot();
+        boolean loadingComplete = io.load.isLoadEnd();
+        boolean experimentalFrame = loadingComplete && useExperimentalRender;
+        if (experimentalFrame) {
+            prepareExperimentalFrame();
         }
 
-        do {
-            if (vramBuffer.validate(getGraphicsConfiguration()) == VolatileImage.IMAGE_RESTORED) {
-                // 복구 이벤트
-            }
+        long frameStartNanos = System.nanoTime();
+        try {
+            do {
+                do {
+                    Graphics2D d2 = (Graphics2D) strategy.getDrawGraphics();
+                    try {
+                        d2.setColor(Color.BLACK);
+                        d2.fillRect(0, 0, currentWidth, currentHeight);
 
-            Graphics2D d2 = vramBuffer.createGraphics();
-            try {
-                d2.setColor(Color.BLACK);
-                d2.fillRect(0, 0, currentWidth, currentHeight);
+                        d2.translate(
+                                metrics.currentXOffset(),
+                                metrics.currentYOffset()
+                        );
+                        d2.scale(
+                                metrics.currentScale(),
+                                metrics.currentScale()
+                        );
 
-                d2.translate(viewMetrics.getCurrentXOffset(), viewMetrics.getCurrentYOffset());
-                d2.scale(viewMetrics.getCurrentScale(), viewMetrics.getCurrentScale());
-
-                if (!io.load.isLoadEnd()) {
-                    renderLoadingScreen(d2);
-                } else if (useExperimentalRender) {
-                    synchronized (drawCalls) {
-                        renderTargetCalls.addAll(drawCalls);
-                        renderTargetXs.addAll(drawCallXs);
-                        renderTargetYs.addAll(drawCallYs);
-
-                        drawCalls.clear();
-                        drawCallXs.clear();
-                        drawCallYs.clear();
+                        drawCurrentFrame(d2, loadingComplete);
+                    } finally {
+                        d2.dispose();
                     }
+                } while (strategy.contentsRestored());
 
-                    for (int i = 0; i < renderTargetCalls.size(); i++) {
-                        Call call = renderTargetCalls.get(i);
-                        int x = renderTargetXs.get(i);
-                        int y = renderTargetYs.get(i);
+                strategy.show();
+            } while (strategy.contentsLost());
+        } finally {
+            if (experimentalFrame) {
+                clearExperimentalFrame();
+            }
+        }
 
-                        if (call != null) {
-                            call.updateCache();
+        recordPresentedFrame(System.nanoTime() - frameStartNanos);
+    }
 
-                            VolatileImage buffer = call.getBuffer();
+    private void prepareExperimentalFrame() {
+        synchronized (drawCalls) {
+            renderTargetCalls.addAll(drawCalls);
+            renderTargetXs.addAll(drawCallXs);
+            renderTargetYs.addAll(drawCallYs);
 
-                            if (buffer != null) {
-                                d2.drawImage(buffer, x, y, null);
-                            }
-                        }
+            drawCalls.clear();
+            drawCallXs.clear();
+            drawCallYs.clear();
+        }
+    }
+
+    private void clearExperimentalFrame() {
+        renderTargetCalls.clear();
+        renderTargetXs.clear();
+        renderTargetYs.clear();
+    }
+
+    private void drawCurrentFrame(Graphics2D d2, boolean loadingComplete) {
+        if (!loadingComplete) {
+            renderLoadingScreen(d2);
+        } else if (useExperimentalRender) {
+            for (int i = 0; i < renderTargetCalls.size(); i++) {
+                Call call = renderTargetCalls.get(i);
+                int x = renderTargetXs.get(i);
+                int y = renderTargetYs.get(i);
+
+                if (call != null) {
+                    call.updateCache();
+                    VolatileImage buffer = call.getBuffer();
+                    if (buffer != null) {
+                        d2.drawImage(buffer, x, y, null);
                     }
-
-                    renderTargetCalls.clear();
-                    renderTargetXs.clear();
-                    renderTargetYs.clear();
-                } else {
-                    render(d2);
                 }
-
-                if (Fw.Debugger.showHitbox) {
-                    Fw.Debugger.Internal.renderHitbox(d2);
-                }
-                if (console != null) { console.render(d2); }
-
-            } finally {
-                d2.dispose();
             }
+        } else {
+            render(d2);
+        }
 
-            Graphics hwGraphics = bufferStrategy.getDrawGraphics();
-            try {
-                hwGraphics.drawImage(vramBuffer, 0, 0, null);
-            } finally {
-                hwGraphics.dispose();
-            }
-            bufferStrategy.show();
+        if (Fw.Debugger.showHitbox) {
+            Fw.Debugger.Internal.renderHitbox(d2);
+        }
+        if (console != null) {
+            console.render(d2);
+        }
+    }
 
-        } while (vramBuffer.contentsLost());
+    private void recordPresentedFrame(long renderWorkNanos) {
+        fpsCounter++;
+        accumulatedRenderWorkNanos += renderWorkNanos;
+
+        long currentTime = System.nanoTime();
+        long elapsedTime = currentTime - lastFpsCheckTime;
+        if (elapsedTime < 1_000_000_000L) return;
+
+        currentFps = (int) Math.round(fpsCounter * 1_000_000_000.0 / elapsedTime);
+        currentFrameTimeMs = (elapsedTime / 1_000_000.0) / fpsCounter;
+        currentRenderWorkTimeMs = (accumulatedRenderWorkNanos / 1_000_000.0) / fpsCounter;
+
+        fpsCounter = 0;
+        accumulatedRenderWorkNanos = 0L;
+        lastFpsCheckTime = currentTime;
+    }
+
+    /**
+     * Returns the currently measured exact FPS.
+     */
+    public int getFps() {
+        return currentFps;
+    }
+
+    /**
+     * Returns the average time (ms) taken per frame.
+     */
+    public double getFrameTimeMs() {
+        return currentFrameTimeMs;
+    }
+
+    /**
+     * Average time (in milliseconds) for rendering excluding frame limit wait time and for show().
+     */
+    public double getRenderWorkTimeMs() {
+        return currentRenderWorkTimeMs;
+    }
+
+    public double getViewScale() {
+        return viewMetrics.getCurrentScale();
+    }
+
+    public double getRequestedViewScale() {
+        return viewMetrics.getRequestedScale();
+    }
+
+    public double getPhysicalViewScale() {
+        return viewMetrics.getPhysicalScale();
+    }
+
+    public boolean isViewScaleSnapped() {
+        return viewMetrics.isScaleSnapped();
+    }
+
+    public boolean isFractionalViewScale() {
+        double scale = getViewScale();
+        return Math.abs(scale - Math.rint(scale)) > 0.000_001;
+    }
+
+    public boolean isFractionalPhysicalScale() {
+        double scale = getPhysicalViewScale();
+        return Math.abs(scale - Math.rint(scale)) > 0.000_001;
     }
 
     public abstract void init(Io io, OperatorManager operators);
@@ -352,6 +461,18 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     @Override public final int getComponentWidth() { return this.getWidth(); }
     @Override public final int getComponentHeight() { return this.getHeight(); }
+    @Override public final double getDeviceScaleX() {
+        GraphicsConfiguration configuration = getGraphicsConfiguration();
+        return configuration == null
+                ? 1.0
+                : configuration.getDefaultTransform().getScaleX();
+    }
+    @Override public final double getDeviceScaleY() {
+        GraphicsConfiguration configuration = getGraphicsConfiguration();
+        return configuration == null
+                ? 1.0
+                : configuration.getDefaultTransform().getScaleY();
+    }
 
     public final int getMouseX() { return viewMetrics.getVirtualMouseX(); }
     public final int getMouseY() { return viewMetrics.getVirtualMouseY(); }
@@ -378,6 +499,12 @@ public abstract class Base extends Canvas implements IFrameSize {
                     Thread.currentThread().interrupt();
                 }
             }
+        }
+
+        BufferStrategy strategy = bufferStrategy;
+        bufferStrategy = null;
+        if (strategy != null) {
+            strategy.dispose();
         }
 
         if (frame != null) {
