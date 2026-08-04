@@ -13,6 +13,9 @@ public class InternalUtils {
     public static String getProjectFolder() {
         return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName();
     }
+    public static String getAssetFolder() {
+        return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName() + File.separator + "asset";
+    }
 
     public static BasicStroke getBasicStroke() {
         return basicStroke;

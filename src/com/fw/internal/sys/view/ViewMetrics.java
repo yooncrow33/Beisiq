@@ -56,7 +56,7 @@ public class ViewMetrics implements IViewMetrics, IMouse {
             if (physicalScale >= 1.0 - SCALE_EPSILON) {
                 double integerPhysicalScale = Math.max(
                         1.0,
-                        Math.floor(physicalScale + SCALE_EPSILON)
+                        Math.ceil(physicalScale + SCALE_EPSILON)
                 );
                 double snappedScale = integerPhysicalScale / deviceScaleX;
 

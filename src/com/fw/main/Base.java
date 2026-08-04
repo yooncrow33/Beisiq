@@ -9,6 +9,7 @@ import com.fw.internal.sys.view.ViewMetrics;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.api.sys.graphics.Call;
+import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanModule;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.platform.system.console.Console;
@@ -22,6 +23,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferStrategy;
 import java.awt.image.VolatileImage;
+import java.io.File;
 import java.util.ArrayList;
 
 public abstract class Base extends Canvas implements IFrameSize {
@@ -33,7 +35,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private Thread renderThread;
     private volatile boolean running = false;
     private volatile long renderPausedUntilNanos = 0L;
-    private boolean useExperimentalRender;
+    private RenderingOption renderingOption;
 
     private int fpsCounter = 0;
     private volatile int currentFps = 0;
@@ -49,6 +51,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final OperatorManager operatorManager = new OperatorManager();
 
     private BufferStrategy bufferStrategy;
+    private VolatileImage vramBuffer;
 
     private final ArrayList<Call> drawCalls = new ArrayList<>(1024);
     private final ArrayList<Integer> drawCallXs = new ArrayList<>(1024);
@@ -140,7 +143,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         if (builder.consoleUse) {
             console = new Console(this);
         }
-        this.useExperimentalRender = builder.useExperimentalRender;
+        this.renderingOption = builder.renderingOption;
 
         mouseAtBase = new MouseAtBase(this);
         init(io, operatorManager);
@@ -148,6 +151,10 @@ public abstract class Base extends Canvas implements IFrameSize {
         launch();
 
         new Thread(() -> {
+            File assetFolder = new File(InternalUtils.getAssetFolder());
+            if (!assetFolder.exists()) {
+                assetFolder.mkdirs();
+            }
             setConsole(new ConsoleInit());
             setMouse(getMouse());
             if (console!=null) {io.addIoObject("quickputsystem",console.getQuickPutManager());}
@@ -159,7 +166,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         String stringKey;
         Integer integerKey;
         boolean consoleUse;
-        boolean useExperimentalRender;
+        RenderingOption renderingOption;
 
         public Builder setStringKey(String stringKey) {
             this.stringKey = stringKey;
@@ -176,8 +183,8 @@ public abstract class Base extends Canvas implements IFrameSize {
             return this;
         }
 
-        public Builder setUseExperimentalRender(boolean b) {
-            this.useExperimentalRender = b;
+        public Builder setRenderingOption(RenderingOption renderingOption) {
+            this.renderingOption = renderingOption;
             return this;
         }
     }
@@ -287,53 +294,110 @@ public abstract class Base extends Canvas implements IFrameSize {
     private void renderLoop() {
         if (System.nanoTime() < renderPausedUntilNanos) return;
 
-        BufferStrategy strategy = bufferStrategy;
-        if (strategy == null || !isDisplayable()) return;
+        if (renderingOption.equals(RenderingOption.DEFAULT) || renderingOption.equals(RenderingOption.EXPERIMENTAL)) {
+            BufferStrategy strategy = bufferStrategy;
+            if (strategy == null || !isDisplayable()) return;
 
-        int currentWidth = getWidth();
-        int currentHeight = getHeight();
-        if (currentWidth <= 0 || currentHeight <= 0) return;
+            int currentWidth = getWidth();
+            int currentHeight = getHeight();
+            if (currentWidth <= 0 || currentHeight <= 0) return;
 
-        ViewMetrics.Snapshot metrics = viewMetrics.getSnapshot();
-        boolean loadingComplete = io.load.isLoadEnd();
-        boolean experimentalFrame = loadingComplete && useExperimentalRender;
-        if (experimentalFrame) {
-            prepareExperimentalFrame();
-        }
-
-        long frameStartNanos = System.nanoTime();
-        try {
-            do {
-                do {
-                    Graphics2D d2 = (Graphics2D) strategy.getDrawGraphics();
-                    try {
-                        d2.setColor(Color.BLACK);
-                        d2.fillRect(0, 0, currentWidth, currentHeight);
-
-                        d2.translate(
-                                metrics.currentXOffset(),
-                                metrics.currentYOffset()
-                        );
-                        d2.scale(
-                                metrics.currentScale(),
-                                metrics.currentScale()
-                        );
-
-                        drawCurrentFrame(d2, loadingComplete);
-                    } finally {
-                        d2.dispose();
-                    }
-                } while (strategy.contentsRestored());
-
-                strategy.show();
-            } while (strategy.contentsLost());
-        } finally {
+            ViewMetrics.Snapshot metrics = viewMetrics.getSnapshot();
+            boolean loadingComplete = io.load.isLoadEnd();
+            boolean experimentalFrame = loadingComplete && renderingOption.equals(RenderingOption.EXPERIMENTAL);
             if (experimentalFrame) {
-                clearExperimentalFrame();
+                prepareExperimentalFrame();
             }
-        }
 
-        recordPresentedFrame(System.nanoTime() - frameStartNanos);
+            long frameStartNanos = System.nanoTime();
+            try {
+                do {
+                    do {
+                        Graphics2D d2 = (Graphics2D) strategy.getDrawGraphics();
+                        try {
+                            d2.setColor(Color.BLACK);
+                            d2.fillRect(0, 0, currentWidth, currentHeight);
+
+                            d2.translate(
+                                    metrics.currentXOffset(),
+                                    metrics.currentYOffset()
+                            );
+                            d2.scale(
+                                    metrics.currentScale(),
+                                    metrics.currentScale()
+                            );
+
+                            drawCurrentFrame(d2, loadingComplete);
+                        } finally {
+                            d2.dispose();
+                        }
+                    } while (strategy.contentsRestored());
+
+                    strategy.show();
+                } while (strategy.contentsLost());
+            } finally {
+                if (experimentalFrame) {
+                    clearExperimentalFrame();
+                }
+            }
+
+            recordPresentedFrame(System.nanoTime() - frameStartNanos);
+        } else if (renderingOption.equals(RenderingOption.LEGACY)) {
+
+            if (bufferStrategy == null) return;
+            int currentWidth = getWidth();
+            int currentHeight = getHeight();
+            if (currentWidth <= 0 || currentHeight <= 0) return;
+
+            if (vramBuffer == null ||
+                    vramBuffer.getWidth() != currentWidth ||
+                    vramBuffer.getHeight() != currentHeight ||
+                    vramBuffer.validate(getGraphicsConfiguration()) == VolatileImage.IMAGE_INCOMPATIBLE) {
+                vramBuffer = getGraphicsConfiguration().createCompatibleVolatileImage(currentWidth, currentHeight);
+            }
+
+            long frameStartNanos = System.nanoTime();
+
+            do {
+                if (vramBuffer.validate(getGraphicsConfiguration()) == VolatileImage.IMAGE_RESTORED) {
+                    // 복구 이벤트
+                }
+
+                Graphics2D d2 = vramBuffer.createGraphics();
+                try {
+                    d2.setColor(Color.BLACK);
+                    d2.fillRect(0, 0, currentWidth, currentHeight);
+
+                    d2.translate(viewMetrics.getCurrentXOffset(), viewMetrics.getCurrentYOffset());
+                    d2.scale(viewMetrics.getCurrentScale(), viewMetrics.getCurrentScale());
+
+                    if (!io.load.isLoadEnd()) {
+                        renderLoadingScreen(d2);
+                    } else {
+                        render(d2);
+                    }
+
+                    if (Fw.Debugger.showHitbox) {
+                        Fw.Debugger.Internal.renderHitbox(d2);
+                    }
+                    if (console != null) { console.render(d2); }
+
+                } finally {
+                    d2.dispose();
+                }
+
+                Graphics hwGraphics = bufferStrategy.getDrawGraphics();
+                try {
+                    hwGraphics.drawImage(vramBuffer, 0, 0, null);
+                } finally {
+                    hwGraphics.dispose();
+                }
+                bufferStrategy.show();
+
+            } while (vramBuffer.contentsLost());
+
+            recordPresentedFrame(System.nanoTime() - frameStartNanos);
+        }
     }
 
     private void prepareExperimentalFrame() {
@@ -357,7 +421,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private void drawCurrentFrame(Graphics2D d2, boolean loadingComplete) {
         if (!loadingComplete) {
             renderLoadingScreen(d2);
-        } else if (useExperimentalRender) {
+        } else if (renderingOption.equals(RenderingOption.EXPERIMENTAL)) {
             for (int i = 0; i < renderTargetCalls.size(); i++) {
                 Call call = renderTargetCalls.get(i);
                 int x = renderTargetXs.get(i);
