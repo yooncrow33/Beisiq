@@ -9,17 +9,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class DynamicLoadObject {
+public class DynamicIoLoadObject {
     private static final ExecutorService loadExecutor = Executors.newSingleThreadExecutor();
 
     private final AtomicBoolean loadStart = new AtomicBoolean(false);
     private final AtomicBoolean loadEnd = new AtomicBoolean(false);
     private final String fullPath;
-    private final Dynamic interfaceObject;
+    private final DynamicIo interfaceObject;
 
-    public DynamicLoadObject(String fullPath, Dynamic dynamic) {
+    public DynamicIoLoadObject(String fullPath, DynamicIo dynamicIo) {
         this.fullPath = fullPath;
-        interfaceObject = dynamic;
+        interfaceObject = dynamicIo;
     }
 
     public void internalLoad() {

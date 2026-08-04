@@ -1,13 +1,16 @@
 package com.fw.internal.utils;
 
+import com.fw.main.Base;
 import com.fw.main.Core;
 
 import java.awt.*;
 import java.io.File;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
+@Internal
 public class InternalUtils {
     private static final BasicStroke basicStroke = new BasicStroke(3f);
     public static String getProjectFolder() {
@@ -15,6 +18,17 @@ public class InternalUtils {
     }
     public static String getAssetFolder() {
         return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName() + File.separator + "asset";
+    }
+
+    /**
+     * It's include last separator.
+     */
+    public static String getJarResourceFolder() {
+        URL resource = InternalUtils.class.getResource("/");
+        if (resource != null) {
+            return "/";
+        }
+        return "/";
     }
 
     public static BasicStroke getBasicStroke() {

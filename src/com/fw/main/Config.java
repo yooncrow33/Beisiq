@@ -25,7 +25,7 @@ public class Config {
         this.useKoreanModule = builder.useKoreanModule;
         this.useEncryption = builder.useEncryption;
         this.useIntegerPhysicalScaling = builder.useIntegerPhysicalScaling;
-        this.secretKey = builder.secretKey;
+        if (builder.secretKey != null) { this.secretKey = builder.secretKey; }
         if (secretKey.length() != 16) {
             System.err.println("Encryption Key is not 16-digit!");
             System.exit(0);
@@ -40,7 +40,7 @@ public class Config {
         boolean useKoreanModule = false;
         boolean useEncryption;
         boolean useIntegerPhysicalScaling;
-        String secretKey = null;
+        String secretKey = "qwerasdfzxcvtyui";
         public Builder(String projectName) {
             this.projectName = projectName;
         }

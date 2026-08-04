@@ -1,11 +1,16 @@
 package com.fw.internal.sys.io;
 
+import com.fw.internal.utils.Internal;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.io.Io;
 
 public final class Load {
-    private boolean loadStart = false;
-    private boolean loadEnd = false;
+    @Internal
+    @Deprecated
+    public boolean loadStart = false;
+    @Internal
+    @Deprecated
+    public boolean loadEnd = false;
     private int progress = 0;
     private int maxProgress = 0;
     final Io io;

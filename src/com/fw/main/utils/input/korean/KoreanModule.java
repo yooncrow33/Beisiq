@@ -12,10 +12,8 @@ import java.text.AttributedCharacterIterator;
 public class KoreanModule {
 
     public KoreanModule(Base jComponent) {
-        // Canvas 생성자 또는 초기화 로직에 추가
         jComponent.setFocusTraversalKeysEnabled(false);
 
-        // (더 확실하게 하려면) 포커스 이동 키 세트 자체를 empty set으로 날리기
         jComponent.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, java.util.Collections.emptySet());
         jComponent.setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, java.util.Collections.emptySet());
 

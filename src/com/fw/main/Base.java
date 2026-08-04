@@ -12,6 +12,9 @@ import com.fw.main.api.sys.graphics.Call;
 import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanModule;
 import com.fw.main.utils.input.mouse.MouseInterface;
+import com.fw.main.utils.io.IoUtils;
+import com.fw.main.utils.platform.system.asset.AssetManager;
+import com.fw.main.utils.platform.system.asset.Texture;
 import com.fw.main.utils.platform.system.console.Console;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
 
@@ -25,6 +28,8 @@ import java.awt.image.BufferStrategy;
 import java.awt.image.VolatileImage;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
@@ -47,10 +52,13 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final Mouse mouse = new Mouse(this);
     public final Mouse getMouse() { return mouse; }
     private final ViewMetrics viewMetrics;
+    public final AssetManager assetManager = new AssetManager();
     protected final Io io = new Io();
     private final OperatorManager operatorManager = new OperatorManager();
+    private final AssetInit assetInit = new AssetInit();
 
     private BufferStrategy bufferStrategy;
+    //for legacy rendering.
     private VolatileImage vramBuffer;
 
     private final ArrayList<Call> drawCalls = new ArrayList<>(1024);
@@ -68,6 +76,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private ConsoleCMD consoleCMD = null;
     public ConsoleCMD getConsoleCMD() {return consoleCMD;}
     private Console console = null;
+    private Texture logo;
 
     public Base(Builder builder) {
         if (!Core.isIsSetConfig()) {
@@ -146,11 +155,13 @@ public abstract class Base extends Canvas implements IFrameSize {
         this.renderingOption = builder.renderingOption;
 
         mouseAtBase = new MouseAtBase(this);
-        init(io, operatorManager);
+        init(io, assetInit, operatorManager);
+        logo = assetManager.load(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getJarResourceFolder()+"Beisiq2.PNG",null);
 
         launch();
 
         new Thread(() -> {
+            io.load.loadStart = true;
             File assetFolder = new File(InternalUtils.getAssetFolder());
             if (!assetFolder.exists()) {
                 assetFolder.mkdirs();
@@ -158,7 +169,14 @@ public abstract class Base extends Canvas implements IFrameSize {
             setConsole(new ConsoleInit());
             setMouse(getMouse());
             if (console!=null) {io.addIoObject("quickputsystem",console.getQuickPutManager());}
+            for (Map.Entry<String, String> entry : assetInit.textureAssets.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+
+                assetManager.load(AssetManager.LoadMode.SYNC,key,value,null);
+            }
             io.load.load();
+            io.load.loadEnd = true;
         }).start();
     }
 
@@ -205,6 +223,35 @@ public abstract class Base extends Canvas implements IFrameSize {
         public void registerConsoleCMD(ConsoleCMD CMD) { if(consoleCMD!=null) {
             System.err.println("ConsoleCMD is already init!"); return;} consoleCMD = CMD;}
         public AutoCompleteManager getAuto() {return console.getAuto();}
+    }
+
+    public class AssetInit {
+        public enum RootType {
+            IS_ON_RESOURCE,
+            IS_ON_PROJECT_FOLDER,
+            CUSTOM
+        }
+
+        private final Map<String, String> textureAssets = new LinkedHashMap<>();
+
+        /**
+         * If RootType is custom, It needs full path.
+         * If RootType is isOnResource or isOnProjectFolder, It needs only file name.
+         * @param fileNameOrPath
+         */
+        public void registerBootAsset(RootType rootType, String key, String fileNameOrPath) {
+            if (key == null || fileNameOrPath == null || rootType == null) {
+                throw new IllegalArgumentException("Key, fileName, and rootType must not be null.");
+            }
+
+            String fullPath = switch (rootType) {
+                case CUSTOM -> fileNameOrPath;
+                case IS_ON_RESOURCE -> IoUtils.getCurrentResourceFolder() + fileNameOrPath;
+                case IS_ON_PROJECT_FOLDER -> IoUtils.getAssetFolderInProjectFolder() + fileNameOrPath;
+            };
+
+            textureAssets.put(key, fullPath);
+        }
     }
 
     private void launch() {
@@ -436,7 +483,11 @@ public abstract class Base extends Canvas implements IFrameSize {
                 }
             }
         } else {
-            render(d2);
+            if (!io.load.isLoadEnd()) {
+                renderLoadingScreen(d2);
+            } else {
+                render(d2);
+            }
         }
 
         if (Fw.Debugger.showHitbox) {
@@ -511,7 +562,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         return Math.abs(scale - Math.rint(scale)) > 0.000_001;
     }
 
-    public abstract void init(Io io, OperatorManager operators);
+    public abstract void init(Io io,AssetInit assetInit, OperatorManager operators);
     public abstract void update(double dt);
     public abstract void render(Graphics g);
     public void setMouse(Mouse mouse) {}
@@ -578,9 +629,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     }
 
     private void renderLoadingScreen(Graphics g) {
-        if (loadingComponent != null) {
-            loadingComponent.render(g);
-        }
+        g.drawImage(logo.getVolatileImage(),0,0,1920,1080,null);
     }
     private void addDrawCall(int x, int y, Call call) {
         synchronized (drawCalls) {
