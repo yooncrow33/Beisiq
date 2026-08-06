@@ -19,6 +19,9 @@ public class Texture implements AutoCloseable {
     private int height;
     private volatile boolean inUse = false;
     final AssetManager assetManager;
+    AssetManager.AssetType type2 = AssetManager.AssetType.TEXTURE;
+    public AssetManager.AssetType getAssetType() {return type2;}
+
 
     Texture(AssetManager assetManager) {
         this.config = GraphicsEnvironment.getLocalGraphicsEnvironment()
@@ -60,7 +63,7 @@ public class Texture implements AutoCloseable {
             }
         }
 
-        if (tempImg == null) throw new RuntimeException("Texture load fail: " + this.path);
+        if (tempImg == null) throw new RuntimeException("Texture loadTexture fail: " + this.path);
 
         this.width = tempImg.getWidth();
         this.height = tempImg.getHeight();
@@ -103,6 +106,7 @@ public class Texture implements AutoCloseable {
             volatileImage = null;
         }
     }
+
 
     @Override
     public synchronized void close() {

@@ -45,7 +45,7 @@ public class IoObject {
                 }
                 ioInterface.load(p);
             } catch (IOException | NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "load fail: " + e.getMessage());
+                JOptionPane.showMessageDialog(null, "loadTexture fail: " + e.getMessage());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -54,7 +54,7 @@ public class IoObject {
                 p.load(in);
                 ioInterface.load(p);
             } catch (IOException | NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "load fail: " + e.getMessage());
+                JOptionPane.showMessageDialog(null, "loadTexture fail: " + e.getMessage());
             }
         }
 

@@ -2,6 +2,7 @@ package com.fw.main.utils.platform.system.asset;
 
 import com.fw.main.Base;
 import com.fw.main.Fw;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.Console;
 
 import java.awt.image.BufferedImage;
@@ -15,11 +16,23 @@ public class AssetManager {
         SYNC,
         LAZY
     }
+    public enum MusicType {
+        MEM_MUSIC,
+        STREAM_MUSIC
+    }
+
+    public enum AssetType {
+        SOUND,
+        MUSIC,
+        TEXTURE
+    }
 
     private final Base instance;
     private final Queue<Texture> freePool = new ConcurrentLinkedQueue<>();
     private Texture[] pool;
-    private final Map<String, Texture> activeMap = new ConcurrentHashMap<>();
+    private final Map<String, Texture> textureActiveMap = new ConcurrentHashMap<>();
+    private final Map<String, Sound> soundActiveMap = new ConcurrentHashMap<>();
+    private final Map<String, Music> musicActiveMap = new ConcurrentHashMap<>();
     private final Map<String, List<DynamicAssetObject>> pendingEvents = new ConcurrentHashMap<>();
     private final Map<String, DynamicAssetObject> pendingObjects = new ConcurrentHashMap<>();
     private final Queue<DynamicAssetObject> daoFreePool = new ConcurrentLinkedQueue<>();
@@ -83,9 +96,9 @@ public class AssetManager {
         return dao;
     }
 
-    public Texture load(LoadMode mode, String assetKey, String path, String eventKey) {
-        if (activeMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
-            return activeMap.get(assetKey);
+    public Texture loadTexture(LoadMode mode, String assetKey, String path, String eventKey) {
+        if (textureActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
+            return textureActiveMap.get(assetKey);
         }
 
         Texture texture = getFreeTexture();
@@ -94,7 +107,7 @@ public class AssetManager {
         if (mode == LoadMode.SYNC) {
             try {
                 texture.loadData();
-                activeMap.put(assetKey, texture);
+                textureActiveMap.put(assetKey, texture);
             } catch (Exception e) {
                 texture.close();
                 freePool.offer(texture);
@@ -118,6 +131,117 @@ public class AssetManager {
         return texture;
     }
 
+    public Sound loadSound(LoadMode mode, String assetKey, String path, String eventKey) {
+        if (soundActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
+            return soundActiveMap.get(assetKey);
+        }
+
+        if (!InternalSoundModule.isInitialized()) {
+            InternalSoundModule.init();
+        }
+
+        java.net.URL url = resolveAudioUrl(path);
+        if (url == null) {
+            throw new IllegalArgumentException("Invalid sound path: " + path);
+        }
+
+        if (mode == LoadMode.SYNC) {
+            try {
+                Sound sound = InternalSoundModule.loadSound(url);
+                if (sound == null) {
+                    throw new RuntimeException("Failed to load sound instance: " + assetKey);
+                }
+                soundActiveMap.put(assetKey, sound);
+                return sound;
+            } catch (Exception e) {
+                throw new RuntimeException("SYNC sound loading fail: " + assetKey, e);
+            }
+        } else if (mode == LoadMode.LAZY) {
+            DynamicAssetObject dao = getFreeDao();
+            dao.init(() -> {
+                try {
+                    Sound sound = InternalSoundModule.loadSound(url);
+                    if (sound == null) {
+                        throw new RuntimeException("Failed to load sound instance: " + assetKey);
+                    }
+                    soundActiveMap.put(assetKey, sound);
+                } catch (Exception e) {
+                    throw new RuntimeException("LAZY sound loading fail: " + assetKey, e);
+                }
+            });
+            pendingObjects.put(assetKey, dao);
+            pendingEvents.computeIfAbsent(eventKey, k -> new CopyOnWriteArrayList<>()).add(dao);
+        }
+
+        return null;
+    }
+
+    public Music loadMusic(LoadMode mode, MusicType type, String assetKey, String path, String eventKey) {
+        if (musicActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
+            return musicActiveMap.get(assetKey);
+        }
+
+        if (!InternalSoundModule.isInitialized()) {
+            InternalSoundModule.init();
+        }
+
+        java.net.URL url = resolveAudioUrl(path);
+        if (url == null) {
+            throw new IllegalArgumentException("Invalid music path: " + path);
+        }
+
+        if (mode == LoadMode.SYNC) {
+            try {
+                Music music = createMusicInstance(type, url);
+                if (music == null) {
+                    throw new RuntimeException("Failed to load music instance: " + assetKey);
+                }
+                musicActiveMap.put(assetKey, music);
+                return music;
+            } catch (Exception e) {
+                throw new RuntimeException("SYNC music loading fail: " + assetKey, e);
+            }
+        } else if (mode == LoadMode.LAZY) {
+            DynamicAssetObject dao = getFreeDao();
+            dao.init(() -> {
+                try {
+                    Music music = createMusicInstance(type, url);
+                    if (music == null) {
+                        throw new RuntimeException("Failed to load music instance: " + assetKey);
+                    }
+                    musicActiveMap.put(assetKey, music);
+                } catch (Exception e) {
+                    throw new RuntimeException("LAZY music loading fail: " + assetKey, e);
+                }
+            });
+            pendingObjects.put(assetKey, dao);
+            pendingEvents.computeIfAbsent(eventKey, k -> new CopyOnWriteArrayList<>()).add(dao);
+        }
+
+        return null;
+    }
+
+    private Music createMusicInstance(MusicType type, java.net.URL url) {
+        return switch (type) {
+            case MEM_MUSIC -> InternalSoundModule.loadMusic(url, false);
+            case STREAM_MUSIC -> InternalSoundModule.loadMusic(url, true);
+        };
+    }
+
+    private java.net.URL resolveAudioUrl(String path) {
+        if (path == null) return null;
+        try {
+            if (isResourcePath(path)) {
+                String resPath = path.startsWith("/") ? path : "/" + path;
+                return InternalSoundModule.class.getResource(resPath);
+            } else {
+                return new java.io.File(path).toURI().toURL();
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void event(String eventKey) {
         List<DynamicAssetObject> tasks = pendingEvents.remove(eventKey);
         if (tasks != null) {
@@ -127,14 +251,14 @@ public class AssetManager {
         }
     }
 
-    public Texture get(String assetKey) {
-        Texture tex = activeMap.get(assetKey);
+    public Texture getTexture(String assetKey) {
+        Texture tex = textureActiveMap.get(assetKey);
         if (tex != null) return tex;
 
         DynamicAssetObject dao = pendingObjects.get(assetKey);
         if (dao != null) {
             if (dao.isError()) {
-                free(assetKey);
+                free(AssetType.TEXTURE, assetKey);
                 return null;
             }
             if (dao.isLoaded()) {
@@ -146,7 +270,7 @@ public class AssetManager {
 
                         for (Texture t : pool) {
                             if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
-                                activeMap.put(assetKey, t);
+                                textureActiveMap.put(assetKey, t);
                                 return t;
                             }
                         }
@@ -157,34 +281,132 @@ public class AssetManager {
         return null;
     }
 
-    public synchronized void free(String assetKey) {
-        Texture tex = activeMap.remove(assetKey);
-        if (tex != null) {
-            tex.close();
-            freePool.offer(tex);
-        } else {
-            DynamicAssetObject dao = pendingObjects.remove(assetKey);
-            if (dao != null) {
-                pendingEvents.values().forEach(list -> list.remove(dao));
+    public Sound getSound(String assetKey) {
+        Sound sound = soundActiveMap.get(assetKey);
+        if (sound != null) return sound;
 
-                dao.reset();
-                daoFreePool.offer(dao);
-
-                for (Texture t : pool) {
-                    if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
-                        t.close();
-                        freePool.offer(t);
-                        break;
+        DynamicAssetObject dao = pendingObjects.get(assetKey);
+        if (dao != null) {
+            if (dao.isError()) {
+                free(AssetType.SOUND, assetKey);
+                return null;
+            }
+            if (dao.isLoaded()) {
+                synchronized (this) {
+                    dao = pendingObjects.remove(assetKey);
+                    if (dao != null) {
+                        dao.reset();
+                        daoFreePool.offer(dao);
+                        return soundActiveMap.get(assetKey);
                     }
                 }
             }
         }
+        return null;
+    }
+
+    public Music getMusic(String assetKey) {
+        Music music = musicActiveMap.get(assetKey);
+        if (music != null) return music;
+
+        DynamicAssetObject dao = pendingObjects.get(assetKey);
+        if (dao != null) {
+            if (dao.isError()) {
+                free(AssetType.MUSIC, assetKey);
+                return null;
+            }
+            if (dao.isLoaded()) {
+                synchronized (this) {
+                    dao = pendingObjects.remove(assetKey);
+                    if (dao != null) {
+                        dao.reset();
+                        daoFreePool.offer(dao);
+                        return musicActiveMap.get(assetKey);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public synchronized void free(AssetType assetType, String assetKey) {
+        switch (assetType) {
+            case TEXTURE -> {
+                Texture tex = textureActiveMap.remove(assetKey);
+                if (tex != null) {
+                    tex.close();
+                    freePool.offer(tex);
+                } else {
+                    DynamicAssetObject dao = pendingObjects.remove(assetKey);
+                    if (dao != null) {
+                        pendingEvents.values().forEach(list -> list.remove(dao));
+
+                        dao.reset();
+                        daoFreePool.offer(dao);
+
+                        for (Texture t : pool) {
+                            if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
+                                t.close();
+                                freePool.offer(t);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            case SOUND -> {
+                Sound sound = soundActiveMap.remove(assetKey);
+                if (sound != null) {
+                    sound.stop();
+                    sound.free();
+                } else {
+                    DynamicAssetObject dao = pendingObjects.remove(assetKey);
+                    if (dao != null) {
+                        pendingEvents.values().forEach(list -> list.remove(dao));
+                        dao.reset();
+                        daoFreePool.offer(dao);
+                    }
+                }
+            }
+            case MUSIC -> {
+                Music music = musicActiveMap.remove(assetKey);
+                if (music != null) {
+                    music.stop();
+                    music.free();
+                } else {
+                    DynamicAssetObject dao = pendingObjects.remove(assetKey);
+                    if (dao != null) {
+                        pendingEvents.values().forEach(list -> list.remove(dao));
+                        dao.reset();
+                        daoFreePool.offer(dao);
+
+                    }
+                }
+            }
+        }
+
     }
 
     public synchronized void disposeAll() {
-        activeMap.clear();
+        textureActiveMap.clear();
         pendingObjects.clear();
         pendingEvents.clear();
+
+        for (Sound sound : soundActiveMap.values()) {
+            if (sound != null) {
+                sound.stop();
+                sound.free();
+            }
+        }
+        soundActiveMap.clear();
+
+        for (Music sound : musicActiveMap.values()) {
+            if (sound != null) {
+                sound.stop();
+                sound.free();
+            }
+        }
+        musicActiveMap.clear();
 
         if (pool != null) {
             for (Texture tex : pool) {
@@ -212,5 +434,11 @@ public class AssetManager {
                 trimmed.startsWith("classpath:") ||
                 trimmed.startsWith("jar:") ||
                 trimmed.contains("!/");
+    }
+
+    public class SoundAPI {
+        public void setGlobalVolume(double volume) {InternalSoundModule.setGlobalVolume(volume);}
+        public double getGlobalVolume() {return InternalSoundModule.getGlobalVolume();}
+        public boolean isInitialized() {return InternalSoundModule.isInitialized();}
     }
 }

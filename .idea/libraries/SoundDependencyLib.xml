@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="SoundDependencyLib">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/dependency lib/jorbis-0.0.17.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependency lib/vorbisspi1.0.3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/dependency lib/tritonus_share.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

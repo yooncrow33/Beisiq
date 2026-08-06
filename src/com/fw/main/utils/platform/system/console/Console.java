@@ -6,8 +6,8 @@ import com.fw.main.Core;
 import com.fw.main.api.io.IoInterface;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
-import kuusisto.tinysound.TinySound;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -112,20 +112,20 @@ public class Console {
         getAuto().suggestAt(1,"up").whenToken(0).is("sys");
         getAuto().suggestAt(1,"down").whenToken(0).is("sys");
         getAuto().suggestAt(1,"gc").whenToken(0).is("sys");
-        getAuto().suggestAt(1,"get").whenToken(0).is("sys");
+        getAuto().suggestAt(1,"getTexture").whenToken(0).is("sys");
         getAuto().suggestAt(2,"ver").whenToken(0).is("sys").
-                whenToken(1).is("get");
+                whenToken(1).is("getTexture");
         getAuto().suggestAt(3,"engine").whenToken(0).is("sys").
-                whenToken(1).is("get").whenToken(2).is("ver");
+                whenToken(1).is("getTexture").whenToken(2).is("ver");
         getAuto().suggestAt(3,"sound").whenToken(0).is("sys").
-                whenToken(1).is("get").whenToken(2).is("ver");
+                whenToken(1).is("getTexture").whenToken(2).is("ver");
         getAuto().suggestAt(3,"built").whenToken(0).is("sys").
-                whenToken(1).is("get").whenToken(2).is("ver");
+                whenToken(1).is("getTexture").whenToken(2).is("ver");
         getAuto().suggestAt(4,"jdk").whenToken(0).is("sys").
-                whenToken(1).is("get").whenToken(2).is("ver")
+                whenToken(1).is("getTexture").whenToken(2).is("ver")
                 .whenToken(3).is("built");
         getAuto().suggestAt(4,"vm").whenToken(0).is("sys").
-                whenToken(1).is("get").whenToken(2).is("ver")
+                whenToken(1).is("getTexture").whenToken(2).is("ver")
                 .whenToken(3).is("built");
     }
 
@@ -528,7 +528,7 @@ public class Console {
                 base.assetManager.clearGarbage();
                 text.clear();
             }
-            case "get" -> {
+            case "getTexture" -> {
                 if (args.size() < 3) {
                     addLog(LogType.ERROR,"fuc is null!");
                     return;
@@ -545,7 +545,7 @@ public class Console {
                                 text.clear();
                             }
                             case "sound" -> {
-                                addLog(LogType.SYSTEM, "BeisiqTinySound: " + TinySound.VERSION);
+                                addLog(LogType.SYSTEM, "BeisiqTinySound: " + InternalSoundModule.VERSION);
                                 text.clear();
                             }
                             case "built" -> {

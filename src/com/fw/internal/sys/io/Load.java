@@ -31,13 +31,13 @@ public final class Load {
     public void load() {
         loadStart = true;
         maxProgress = io.ioObjects.size();
-        System.out.println(InternalUtils.Time.getTimeFormate() + " / start load");
+        System.out.println(InternalUtils.Time.getTimeFormate() + " / start loadTexture");
         for (IoObject l : io.ioObjects) {
             l.internalLoad();
             progress++;
 
         }
         loadEnd = true;
-        System.out.println(InternalUtils.Time.getTimeFormate() + " / end load");
+        System.out.println(InternalUtils.Time.getTimeFormate() + " / end loadTexture");
     }
 }
