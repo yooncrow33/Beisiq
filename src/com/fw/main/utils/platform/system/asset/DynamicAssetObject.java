@@ -18,19 +18,25 @@ public class DynamicAssetObject {
     private final AtomicBoolean loadStart = new AtomicBoolean(false);
     private final AtomicBoolean loadEnd = new AtomicBoolean(false);
     private final AtomicBoolean loadError = new AtomicBoolean(false);
-    private final DynamicAsset internalInterface;
+    private DynamicAsset internalInterface;
 
-    public DynamicAssetObject(DynamicAsset dynamicAsset) {
-        internalInterface = dynamicAsset;
+    public DynamicAssetObject() {}
+
+    public void init(DynamicAsset dynamicAsset) {
+        this.internalInterface = dynamicAsset;
+        this.loadStart.set(false);
+        this.loadEnd.set(false);
+        this.loadError.set(false);
     }
-
 
     public void launch() {
         if (!loadStart.compareAndSet(false, true)) return;
 
         loadExecutor.submit(() -> {
             try {
-                internalInterface.load();
+                if (internalInterface != null) {
+                    internalInterface.load();
+                }
             } catch (Exception e) {
                 loadError.set(true);
                 System.err.println("Asset Load Error: " + e.getMessage());
@@ -46,5 +52,12 @@ public class DynamicAssetObject {
 
     public boolean isError() {
         return loadError.get();
+    }
+
+    public void reset() {
+        this.internalInterface = null;
+        this.loadStart.set(false);
+        this.loadEnd.set(false);
+        this.loadError.set(false);
     }
 }

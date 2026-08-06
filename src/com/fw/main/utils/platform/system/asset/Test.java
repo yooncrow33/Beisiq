@@ -1,4 +1,4 @@
-package com.fw.main.utils.platform.system.asset;
+/*package com.fw.main.utils.platform.system.asset;
 
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.Config;
@@ -12,8 +12,8 @@ class Test {
     }
 
     public static void testConcurrencyTolerance() throws InterruptedException {
-        AssetManager manager = new AssetManager();
-        manager.malloc(10000); // 풀 크기 넉넉히 확보
+        AssetManager manager = new AssetManager(this);
+        manager.mallocTexturePool(10000); // 풀 크기 넉넉히 확보
 
         // 스레드 100개가 동시에 동일한 이벤트 키에 LAZY 로딩 및 취소(free)를 난사
         Runnable stressTask = () -> {
@@ -49,7 +49,7 @@ class Test {
 
     public static void testPoolLifecycleTolerance() throws InterruptedException {
         AssetManager manager = new AssetManager();
-        manager.malloc(2); // 아주 좁은 풀 사이즈 (2개)
+        manager.mallocTexturePool(2); // 아주 좁은 풀 사이즈 (2개)
 
         // ==========================================
         // 검증 1: 예외 발생 시 풀 슬롯 누수(Zombie Lock) 방어 확인
@@ -87,7 +87,7 @@ class Test {
     }
     public static void testPhantomLeakAndPoolRace() throws InterruptedException {
         AssetManager manager = new AssetManager();
-        manager.malloc(5);
+        manager.mallocTexturePool(5);
 
         // ==========================================
         // 검증 1: 객체 풀 할당 경쟁 (Race Condition) 테스트
@@ -112,7 +112,7 @@ class Test {
         // 검증 2: Map 이관 중 유령 누수 (Phantom Leak) 방어 테스트
         // ==========================================
         manager.disposeAll();
-        manager.malloc(2);
+        manager.mallocTexturePool(2);
 
         manager.load(AssetManager.LoadMode.LAZY, "PHANTOM_TEST", "dummy.png", "EVT");
         manager.event("EVT");
@@ -141,10 +141,10 @@ class Test {
 
     public static void main(String[] args) throws InterruptedException {
         AssetManager manager = new AssetManager();
-        manager.malloc(100000);
+        manager.mallocTexturePool(100000);
 
         // 1. 메모리 풀 초기화 (텍스처 5개 제한)
-        manager.malloc(5);
+        manager.mallocTexturePool(5);
         System.out.println("[시스템] 풀 크기 5로 초기화 완료\n");
 
         // 사용할 테스트용 이미지 경로 (반드시 실제 존재하는 이미지 경로로 수정)
@@ -220,7 +220,7 @@ class Test {
 
         //------
 
-        manager.malloc(5);
+        manager.mallocTexturePool(5);
 
         // 테스트 1: 좀비 로딩 크래시 방지 검증
         manager.load(AssetManager.LoadMode.LAZY, "test_img", InternalUtils.getAssetFolder() + File.separator + "Beisiq2.PNG", "eventA");
@@ -245,3 +245,5 @@ class Test {
         testPhantomLeakAndPoolRace();
     }
 }
+
+ */

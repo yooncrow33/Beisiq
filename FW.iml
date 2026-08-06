@@ -9,6 +9,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
-    <orderEntry type="library" name="Civitas SI 0.7.2" level="project" />
+    <orderEntry type="library" name="BeisiqTinySound" level="project" />
   </component>
 </module>

@@ -1,14 +1,10 @@
 package com.fw.main.utils.platform.system.asset;
 
-import com.fw.internal.utils.InternalUtils;
-import sun.misc.Unsafe;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
 import java.awt.image.VolatileImage;
 import java.io.File;
-import java.lang.reflect.Field;
 
 public class Texture implements AutoCloseable {
     private GraphicsConfiguration config;
@@ -16,17 +12,18 @@ public class Texture implements AutoCloseable {
     private volatile String path;
     private volatile boolean closed = false;
 
-    private long offHeapAddress = 0;
-    private int bufferSize = 0;
+    private BufferedImage backupImage;
 
     private VolatileImage volatileImage;
     private int width;
     private int height;
     private volatile boolean inUse = false;
+    final AssetManager assetManager;
 
-    public Texture() {
+    Texture(AssetManager assetManager) {
         this.config = GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getDefaultScreenDevice().getDefaultConfiguration();
+        this.assetManager = assetManager;
     }
 
     public void init(String assetKey, String path) {
@@ -67,21 +64,8 @@ public class Texture implements AutoCloseable {
 
         this.width = tempImg.getWidth();
         this.height = tempImg.getHeight();
-        int[] pixels = new int[width * height];
-        tempImg.getRGB(0, 0, width, height, pixels, 0, width);
 
-        this.bufferSize = pixels.length * 4;
-
-        try {
-            offHeapAddress = AssetManager.unsafe.allocateMemory(bufferSize);
-            AssetManager.unsafe.copyMemory(pixels, Unsafe.ARRAY_INT_BASE_OFFSET, null, offHeapAddress, bufferSize);
-        }catch (OutOfMemoryError e) {
-            if (offHeapAddress != 0) AssetManager.unsafe.freeMemory(offHeapAddress);
-            offHeapAddress = 0;
-            throw new Exception("Off-Heap Memory allocate fail: " + this.path, e);
-        } finally {
-            tempImg.flush();
-        }
+        this.backupImage = tempImg;
     }
 
     private void createAndCopyVolatileImage() {
@@ -90,23 +74,12 @@ public class Texture implements AutoCloseable {
     }
 
     private synchronized void copyToVolatile() {
-        if (offHeapAddress == 0 || closed) return;
-
-        BufferedImage viewImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        int[] viewPixels = ((DataBufferInt) viewImg.getRaster().getDataBuffer()).getData();
-
-        AssetManager.unsafe.copyMemory(
-                null, offHeapAddress,
-                viewPixels, Unsafe.ARRAY_INT_BASE_OFFSET,
-                bufferSize
-        );
+        if (backupImage == null || closed) return;
 
         Graphics2D g = volatileImage.createGraphics();
         g.setComposite(AlphaComposite.Src);
-        g.drawImage(viewImg, 0, 0, null);
+        g.drawImage(backupImage, 0, 0, null);
         g.dispose();
-
-        viewImg.flush();
     }
 
     public VolatileImage getVolatileImage() {
@@ -123,6 +96,7 @@ public class Texture implements AutoCloseable {
         }
         return volatileImage;
     }
+
     public void flush() {
         if (volatileImage != null) {
             volatileImage.flush();
@@ -134,11 +108,14 @@ public class Texture implements AutoCloseable {
     public synchronized void close() {
         closed = true;
         flush();
-        if (offHeapAddress != 0) {
-            AssetManager.unsafe.freeMemory(offHeapAddress);
-            offHeapAddress = 0;
-            bufferSize = 0;
+
+        if (backupImage != null) {
+            //쓰래기 통에 담아두고 Texture객체의 backupImage만 비우기.
+            //쓰레기 통은 알아서 버림.
+            assetManager.addGarbageList(backupImage);
+            backupImage = null;
         }
+
         inUse = false;
         assetKey = null;
         path = null;

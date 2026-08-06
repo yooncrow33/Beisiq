@@ -1,64 +1,92 @@
 package com.fw.main.utils.platform.system.asset;
 
-import sun.misc.Unsafe;
+import com.fw.main.Base;
+import com.fw.main.Fw;
+import com.fw.main.utils.platform.system.console.Console;
 
-import java.lang.reflect.Field;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.awt.image.BufferedImage;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public class AssetManager {
     public enum LoadMode {
-        /**
-         * Loads immediately in the current thread. Do not use on the rendering or main logic thread.
-         */
         SYNC,
-        /**
-         * Loads asynchronously in a background thread when event enable.
-         */
         LAZY
     }
 
-    static final Unsafe unsafe;
-    static {
-        try {
-            Field f = Unsafe.class.getDeclaredField("theUnsafe");
-            f.setAccessible(true);
-            unsafe = (Unsafe) f.get(null);
-        } catch (Exception e) {
-            throw new RuntimeException("Unsafe init fail", e);
-        }
-    }
-
+    private final Base instance;
     private final Queue<Texture> freePool = new ConcurrentLinkedQueue<>();
     private Texture[] pool;
     private final Map<String, Texture> activeMap = new ConcurrentHashMap<>();
     private final Map<String, List<DynamicAssetObject>> pendingEvents = new ConcurrentHashMap<>();
     private final Map<String, DynamicAssetObject> pendingObjects = new ConcurrentHashMap<>();
+    private final Queue<DynamicAssetObject> daoFreePool = new ConcurrentLinkedQueue<>();
+    private DynamicAssetObject[] daoPool;
 
-    public void malloc(int capacity) {
-        pool = new Texture[capacity];
-        freePool.clear();
-        for (int i = 0; i < capacity; i++) {
-            pool[i] = new Texture();
-            freePool.add(pool[i]);
+    private final Queue<BufferedImage> garbageQueue = new ConcurrentLinkedQueue<>();
+
+    public AssetManager(Base baseInstance) {
+        this.instance = baseInstance;
+    }
+
+    void addGarbageList(BufferedImage bufferedImage) {
+        if (bufferedImage != null) {
+            garbageQueue.add(bufferedImage);
         }
     }
 
-    private synchronized Texture getFreeTexture() {
+    public void clearGarbage() {
+        int count = 0;
+        BufferedImage b;
+        while ((b = garbageQueue.poll()) != null) {
+            b.flush();
+            count++;
+        }
+        if (count > 0 && instance != null) {
+            Fw.Helper.getConsoleToBaseInstance(instance)
+                    .addLog(Console.LogType.SYSTEM, "clear texture garbage count: " + count);
+        }
+    }
+
+    public synchronized void mallocTexturePool(int capacity) {
+        pool = new Texture[capacity];
+        freePool.clear();
+        for (int i = 0; i < capacity; i++) {
+            pool[i] = new Texture(this);
+            freePool.add(pool[i]);
+        }
+    }
+    public synchronized void mallocLazyLoadPool(int capacity) {
+        daoPool = new DynamicAssetObject[capacity];
+        daoFreePool.clear();
+        for (int i = 0; i < capacity; i++) {
+            daoPool[i] = new DynamicAssetObject();
+            daoFreePool.add(daoPool[i]);
+        }
+    }
+
+    private Texture getFreeTexture() {
         Texture tex = freePool.poll();
         if (tex == null) {
-            throw new OutOfMemoryError("out of texture pool. use malloc to increase pool size.");
+            throw new IllegalStateException("Out of texture pool! Increase pool size with mallocTexturePool().");
         }
         tex.setInUse(true);
         return tex;
     }
+    private DynamicAssetObject getFreeDao() {
+        DynamicAssetObject dao = daoFreePool.poll();
+        if (dao == null) {
+            throw new IllegalStateException("Out of DynamicAssetObject pool! Increase pool size with malloc().");
+        }
+        return dao;
+    }
 
     public Texture load(LoadMode mode, String assetKey, String path, String eventKey) {
-        if (activeMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) return null;
+        if (activeMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
+            return activeMap.get(assetKey);
+        }
 
         Texture texture = getFreeTexture();
         texture.init(assetKey, path);
@@ -69,14 +97,17 @@ public class AssetManager {
                 activeMap.put(assetKey, texture);
             } catch (Exception e) {
                 texture.close();
+                freePool.offer(texture);
                 throw new RuntimeException("SYNC loading fail: " + assetKey, e);
             }
         } else if (mode == LoadMode.LAZY) {
-            DynamicAssetObject dao = new DynamicAssetObject(() -> {
+            DynamicAssetObject dao = getFreeDao();
+            dao.init(() -> {
                 try {
                     texture.loadData();
                 } catch (Exception e) {
                     texture.close();
+                    freePool.offer(texture);
                     throw new RuntimeException("LAZY loading fail: " + assetKey, e);
                 }
             });
@@ -110,6 +141,9 @@ public class AssetManager {
                 synchronized (this) {
                     dao = pendingObjects.remove(assetKey);
                     if (dao != null) {
+                        dao.reset();
+                        daoFreePool.offer(dao);
+
                         for (Texture t : pool) {
                             if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
                                 activeMap.put(assetKey, t);
@@ -123,7 +157,7 @@ public class AssetManager {
         return null;
     }
 
-    public void free(String assetKey) {
+    public synchronized void free(String assetKey) {
         Texture tex = activeMap.remove(assetKey);
         if (tex != null) {
             tex.close();
@@ -132,30 +166,41 @@ public class AssetManager {
             DynamicAssetObject dao = pendingObjects.remove(assetKey);
             if (dao != null) {
                 pendingEvents.values().forEach(list -> list.remove(dao));
-                DynamicAssetObject.submitTask(() -> {
-                    for (Texture t : pool) {
-                        if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
-                            t.close();
-                            break;
-                        }
+
+                dao.reset();
+                daoFreePool.offer(dao);
+
+                for (Texture t : pool) {
+                    if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
+                        t.close();
+                        freePool.offer(t);
+                        break;
                     }
-                });
+                }
             }
         }
     }
 
-    public void disposeAll() {
-        for (Texture tex : activeMap.values()) {
-            tex.close();
-        }
+    public synchronized void disposeAll() {
         activeMap.clear();
         pendingObjects.clear();
+        pendingEvents.clear();
 
-        for (Texture tex : pool) {
-            if (tex != null && tex.isInUse()) {
-                tex.close();
+        if (pool != null) {
+            for (Texture tex : pool) {
+                if (tex != null) tex.close();
             }
         }
+        freePool.clear();
+        if (pool != null) Collections.addAll(freePool, pool);
+
+        if (daoPool != null) {
+            for (DynamicAssetObject dao : daoPool) {
+                if (dao != null) dao.reset();
+            }
+        }
+        daoFreePool.clear();
+        if (daoPool != null) Collections.addAll(daoFreePool, daoPool);
     }
 
     static boolean isResourcePath(String path) {
