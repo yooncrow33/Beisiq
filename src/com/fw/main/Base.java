@@ -1,6 +1,5 @@
 package com.fw.main;
 
-import com.fw.internal.graphics.object.GraphicsComponent;
 import com.fw.internal.sys.input.MouseAtBase;
 import com.fw.main.api.io.Io;
 import com.fw.internal.sys.operator.OperatorManager;
@@ -34,6 +33,7 @@ import java.util.Map;
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
+    public static String version = "SI 0.9.2";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
@@ -52,7 +52,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final Mouse mouse = new Mouse(this);
     public final Mouse getMouse() { return mouse; }
     private final ViewMetrics viewMetrics;
-    public final AssetManager assetManager = new AssetManager();
+    public final AssetManager assetManager = new AssetManager(this);
     protected final Io io = new Io();
     private final OperatorManager operatorManager = new OperatorManager();
     private final AssetInit assetInit = new AssetInit();
@@ -69,13 +69,12 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final ArrayList<Integer> renderTargetXs = new ArrayList<>(1024);
     private final ArrayList<Integer> renderTargetYs = new ArrayList<>(1024);
 
-    public GraphicsComponent loadingComponent = null;
     private KoreanModule koreanModule;
     private MouseAtBase mouseAtBase;
 
     private ConsoleCMD consoleCMD = null;
     public ConsoleCMD getConsoleCMD() {return consoleCMD;}
-    private Console console = null;
+    Console console = null;
     private Texture logo;
 
     public Base(Builder builder) {

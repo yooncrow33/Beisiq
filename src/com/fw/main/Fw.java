@@ -2,6 +2,7 @@ package com.fw.main;
 
 import com.fw.internal.utils.Internal;
 import com.fw.main.utils.collision.Hitbox;
+import com.fw.main.utils.platform.system.console.Console;
 
 import java.awt.*;
 import java.util.Map;
@@ -52,6 +53,16 @@ public class Fw {
             public static void renderHitbox(Graphics g) {
                 Debugger.renderHitbox(g);
             }
+        }
+    }
+
+    @Internal
+    /**
+     * Danger.
+     */
+    public static class Helper {
+        public static Console getConsoleToBaseInstance(Base base) {
+            return base.console;
         }
     }
 }

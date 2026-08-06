@@ -7,6 +7,7 @@ import com.fw.main.api.io.IoInterface;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
+import kuusisto.tinysound.TinySound;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -110,6 +111,22 @@ public class Console {
                 .whenToken(1).is("quickput");
         getAuto().suggestAt(1,"up").whenToken(0).is("sys");
         getAuto().suggestAt(1,"down").whenToken(0).is("sys");
+        getAuto().suggestAt(1,"gc").whenToken(0).is("sys");
+        getAuto().suggestAt(1,"get").whenToken(0).is("sys");
+        getAuto().suggestAt(2,"ver").whenToken(0).is("sys").
+                whenToken(1).is("get");
+        getAuto().suggestAt(3,"engine").whenToken(0).is("sys").
+                whenToken(1).is("get").whenToken(2).is("ver");
+        getAuto().suggestAt(3,"sound").whenToken(0).is("sys").
+                whenToken(1).is("get").whenToken(2).is("ver");
+        getAuto().suggestAt(3,"built").whenToken(0).is("sys").
+                whenToken(1).is("get").whenToken(2).is("ver");
+        getAuto().suggestAt(4,"jdk").whenToken(0).is("sys").
+                whenToken(1).is("get").whenToken(2).is("ver")
+                .whenToken(3).is("built");
+        getAuto().suggestAt(4,"vm").whenToken(0).is("sys").
+                whenToken(1).is("get").whenToken(2).is("ver")
+                .whenToken(3).is("built");
     }
 
     public boolean isOpen() { return isOpen; }
@@ -506,6 +523,50 @@ public class Console {
                     return;
                 }
                 text.setInputText(logs.get(value).substring(17));
+            }
+            case "gc" -> {
+                base.assetManager.clearGarbage();
+                text.clear();
+            }
+            case "get" -> {
+                if (args.size() < 3) {
+                    addLog(LogType.ERROR,"fuc is null!");
+                    return;
+                }
+                switch (args.get(2)) {
+                    case "ver" -> {
+                        if (args.size() < 4) {
+                            addLog(LogType.ERROR,"object is null!");
+                            return;
+                        }
+                        switch (args.get(3)) {
+                            case "engine" -> {
+                                addLog(LogType.SYSTEM, Base.version);
+                                text.clear();
+                            }
+                            case "sound" -> {
+                                addLog(LogType.SYSTEM, "BeisiqTinySound: " + TinySound.VERSION);
+                                text.clear();
+                            }
+                            case "built" -> {
+                                if (args.size() < 5) {
+                                    addLog(LogType.ERROR,"object is null!");
+                                    return;
+                                }
+                                switch (args.get(4)) {
+                                    case "jdk" -> {
+                                        addLog(LogType.SYSTEM, "open jdk 21");
+                                        text.clear();
+                                    }
+                                    case "vm" -> {
+                                        addLog(LogType.SYSTEM, "graalvm 21.0.7");
+                                        text.clear();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             case "quickput" -> {
                 if (args.size() < 3) {

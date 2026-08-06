@@ -1,6 +1,5 @@
 package com.test;
 
-import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.io.DynamicIo;
 import com.fw.main.api.io.DynamicIoLoadObject;
 import com.fw.main.api.io.Io;
@@ -11,6 +10,8 @@ import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
+import com.fw.main.utils.io.IoUtils;
+import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.asset.Texture;
 
 import java.awt.*;
@@ -20,9 +21,10 @@ import java.util.Properties;
 public class Test extends Base {
     KoreanObject ko = new KoreanObject();
     float aFloat;
-    int degree = 1;
-    int degree2 = 1;
+    Texture perfect = assetManager.load(AssetManager.LoadMode.LAZY,"1.0", IoUtils.getCurrentResourceFolder()+"1.0.png", "perfect");
+    Texture logo;
 
+    //이건 그냥 엔진의 사용법을 최대한 많이 나타낸 코드일뿐....
     static {
         Core.setConfig(new
                 Config.Builder("CivitasTest"). // = folder name.
@@ -54,6 +56,7 @@ public class Test extends Base {
 
             }
         });
+        logo = assetManager.get("logo");
     }
 
     @Override
@@ -61,12 +64,7 @@ public class Test extends Base {
         c.registerConsoleCMD(new ConsoleCMD() {
             @Override
             public void CMD(List<String> args) {
-                if (args.get(0).equals("test")) {
-                    degree = Integer.parseInt(args.get(1));
-                }
-                if (args.get(0).equals("test2")) {
-                    degree2 = Integer.parseInt(args.get(1));
-                }
+
             }
         });
     }
@@ -75,7 +73,7 @@ public class Test extends Base {
     public void init(Io io, AssetInit assetInit, OperatorManager operatorManager) {
         new TestBindingLegacy(this);
 
-        assetManager.malloc(3000);
+        assetManager.mallocTexturePool(3000);
 
         operatorManager.exitOperatorPack.addOperator(new Operator() {
             @Override
@@ -108,9 +106,7 @@ public class Test extends Base {
             }
         }).launch();
 
-        for (int i = 0; i<200; i++) {
-            assetInit.registerBootAsset(AssetInit.RootType.CUSTOM,"test"+i, InternalUtils.getJarResourceFolder()+"Beisiq2.PNG");
-        }
+        //assetInit.registerBootAsset(AssetInit.RootType.IS_ON_RESOURCE,"test", "yourImage.png");
     }
 
 
@@ -118,6 +114,10 @@ public class Test extends Base {
     @Override
     public void update(double dt) {
         aFloat = (float) Math.random();
+        if (aFloat == 1.0) {
+            assetManager.event("perfect");
+            //load perfect Texture!
+        }
     }
 
     @Override
@@ -144,15 +144,9 @@ public class Test extends Base {
                 isFractionalPhysicalScale() ? "fractional" : "integer",
                 isViewScaleSnapped() ? ", snapped" : ""
         ), 550, 800);
-        g.drawString("degree : "+degree,550,830);
-        g.drawString("degree2: "+degree2,550,860);
 
-        for (int i = 0; degree2>i; i++) {
-            g.drawRect(330,330,30,30);
-        }
-        for (int i = 0; degree>i; i++) {
-            //g.drawImage(texture.getVolatileImage(), 0,0,360,640,null);
-        }
+        g.drawImage(logo.getVolatileImage(),10,1000,70,70,null);
+
     }
 
     public static void main(String[] args) {

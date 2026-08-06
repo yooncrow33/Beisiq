@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="BeisiqTinySound">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../BeisiqTinySound/out/artifacts/BeisiqTinySound_jar/BeisiqTinySound.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
