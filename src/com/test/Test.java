@@ -21,7 +21,7 @@ import java.util.Properties;
 public class Test extends Base {
     KoreanObject ko = new KoreanObject();
     float aFloat;
-    Texture perfect = assetManager.load(AssetManager.LoadMode.LAZY,"1.0", IoUtils.getCurrentResourceFolder()+"1.0.png", "perfect");
+    Texture perfect = assetManager.loadTexture(AssetManager.LoadMode.LAZY,"1.0", IoUtils.getCurrentResourceFolder()+"1.0.png", "perfect");
     Texture logo;
 
     //이건 그냥 엔진의 사용법을 최대한 많이 나타낸 코드일뿐....
@@ -56,7 +56,7 @@ public class Test extends Base {
 
             }
         });
-        logo = assetManager.get("logo");
+        logo = assetManager.getTexture("logo");
     }
 
     @Override
@@ -70,19 +70,20 @@ public class Test extends Base {
     }
 
     @Override
-    public void init(Io io, AssetInit assetInit, OperatorManager operatorManager) {
+    public void init(BaseInit init) {
         new TestBindingLegacy(this);
 
         assetManager.mallocTexturePool(3000);
+        assetManager.mallocLazyLoadPool(500);
 
-        operatorManager.exitOperatorPack.addOperator(new Operator() {
+        init.getOperatorManager().exitOperatorPack.addOperator(new Operator() {
             @Override
             public void exe() {
                 System.out.println("exit");
             }
         });
 
-        io.addIoObject("default", new IoInterface() {
+        init.getIo().addIoObject("default", new IoInterface() {
             @Override
             public void save(Properties p) {
                 p.setProperty("float", Float.toString(aFloat));
@@ -109,14 +110,12 @@ public class Test extends Base {
         //assetInit.registerBootAsset(AssetInit.RootType.IS_ON_RESOURCE,"test", "yourImage.png");
     }
 
-
-
     @Override
     public void update(double dt) {
         aFloat = (float) Math.random();
         if (aFloat == 1.0) {
             assetManager.event("perfect");
-            //load perfect Texture!
+            //loadTexture perfect Texture!
         }
     }
 

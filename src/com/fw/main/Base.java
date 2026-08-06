@@ -14,6 +14,7 @@ import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
 import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.asset.Texture;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.Console;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
 
@@ -53,9 +54,10 @@ public abstract class Base extends Canvas implements IFrameSize {
     public final Mouse getMouse() { return mouse; }
     private final ViewMetrics viewMetrics;
     public final AssetManager assetManager = new AssetManager(this);
-    protected final Io io = new Io();
-    private final OperatorManager operatorManager = new OperatorManager();
+    final Io io = new Io();
+    final OperatorManager operatorManager = new OperatorManager();
     private final AssetInit assetInit = new AssetInit();
+    private final BaseInit baseInit = new BaseInit(this);
 
     private BufferStrategy bufferStrategy;
     //for legacy rendering.
@@ -154,8 +156,8 @@ public abstract class Base extends Canvas implements IFrameSize {
         this.renderingOption = builder.renderingOption;
 
         mouseAtBase = new MouseAtBase(this);
-        init(io, assetInit, operatorManager);
-        logo = assetManager.load(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getJarResourceFolder()+"Beisiq2.PNG",null);
+        init(baseInit);
+        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getJarResourceFolder()+"Beisiq2.PNG",null);
 
         launch();
 
@@ -172,7 +174,7 @@ public abstract class Base extends Canvas implements IFrameSize {
                 String key = entry.getKey();
                 String value = entry.getValue();
 
-                assetManager.load(AssetManager.LoadMode.SYNC,key,value,null);
+                assetManager.loadTexture(AssetManager.LoadMode.SYNC,key,value,null);
             }
             io.load.load();
             io.load.loadEnd = true;
@@ -222,6 +224,21 @@ public abstract class Base extends Canvas implements IFrameSize {
         public void registerConsoleCMD(ConsoleCMD CMD) { if(consoleCMD!=null) {
             System.err.println("ConsoleCMD is already init!"); return;} consoleCMD = CMD;}
         public AutoCompleteManager getAuto() {return console.getAuto();}
+    }
+
+    public class BaseInit {
+        Base base;
+
+        BaseInit(Base base) {
+            this.base = base;
+        }
+
+        public Io getIo() {return base.io;}
+        public OperatorManager getOperatorManager() {return operatorManager;}
+        public AssetManager getAssetManager() {return assetManager;}
+        public void initSound() {
+            InternalSoundModule.init();
+        }
     }
 
     public class AssetInit {
@@ -561,7 +578,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         return Math.abs(scale - Math.rint(scale)) > 0.000_001;
     }
 
-    public abstract void init(Io io,AssetInit assetInit, OperatorManager operators);
+    public abstract void init(BaseInit baseInit);
     public abstract void update(double dt);
     public abstract void render(Graphics g);
     public void setMouse(Mouse mouse) {}
