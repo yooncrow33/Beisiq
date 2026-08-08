@@ -154,11 +154,4 @@ public interface Music {
 	 * @param pan the desired pan of this Music
 	 */
 	public void setPan(double pan);
-	
-	/**
-	 * Unload this Music from the system.  Attempts to use this Music after
-	 * unloading will result in error.
-	 */
-	public void free();
-	
 }

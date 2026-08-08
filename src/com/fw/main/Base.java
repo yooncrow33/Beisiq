@@ -8,15 +8,18 @@ import com.fw.internal.sys.view.ViewMetrics;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.api.sys.graphics.Call;
+import com.fw.main.utils.graphics.RU;
 import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanModule;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
+import com.fw.internal.utils.DynamicAsset;
 import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.asset.Texture;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.Console;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
+import com.fw.main.utils.platform.system.scene.Scene;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,9 +30,11 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferStrategy;
 import java.awt.image.VolatileImage;
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
@@ -39,7 +44,7 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     private Thread logicThread;
     private Thread renderThread;
-    private volatile boolean running = false;
+    private AtomicBoolean running = new AtomicBoolean(false);
     private volatile long renderPausedUntilNanos = 0L;
     private RenderingOption renderingOption;
 
@@ -58,6 +63,16 @@ public abstract class Base extends Canvas implements IFrameSize {
     final OperatorManager operatorManager = new OperatorManager();
     private final AssetInit assetInit = new AssetInit();
     private final BaseInit baseInit = new BaseInit(this);
+    private float sysInitProgress = 0.0f;
+    private float loadInitProgress = 0.0f;
+    private float assetInitProgress = 0.0f;
+    private float sceneInitProgress = 0.0f;
+    AtomicBoolean initLoadEnd = new AtomicBoolean(false);
+    ArrayList<DynamicAsset> sysLoadStack = new ArrayList<>();
+    public AtomicBoolean isChangeScene = new AtomicBoolean(false);
+    Scene currentScene = null;
+    Scene pendingScene;
+    InitLoadState initLoadState;
 
     private BufferStrategy bufferStrategy;
     //for legacy rendering.
@@ -78,6 +93,8 @@ public abstract class Base extends Canvas implements IFrameSize {
     public ConsoleCMD getConsoleCMD() {return consoleCMD;}
     Console console = null;
     private Texture logo;
+
+    Font loadingMessageFont = new Font(Font.MONOSPACED,Font.BOLD,86);
 
     public Base(Builder builder) {
         if (!Core.isIsSetConfig()) {
@@ -148,6 +165,8 @@ public abstract class Base extends Canvas implements IFrameSize {
             koreanModule = new KoreanModule(this);
         }
 
+        if (builder.initScene != null) {
+            currentScene = builder.initScene; }
         if (builder.integerKey!=null) { Fw.add(builder.integerKey, this); }
         if (builder.stringKey!=null) { Fw.add(builder.stringKey, this); }
         if (builder.consoleUse) {
@@ -156,28 +175,60 @@ public abstract class Base extends Canvas implements IFrameSize {
         this.renderingOption = builder.renderingOption;
 
         mouseAtBase = new MouseAtBase(this);
-        init(baseInit);
+        this.init(baseInit);
         logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getJarResourceFolder()+"Beisiq2.PNG",null);
 
         launch();
 
-        new Thread(() -> {
-            io.load.loadStart = true;
+        sysLoadStack.add(() -> {
             File assetFolder = new File(InternalUtils.getAssetFolder());
             if (!assetFolder.exists()) {
                 assetFolder.mkdirs();
             }
-            setConsole(new ConsoleInit());
-            setMouse(getMouse());
+        });
+        sysLoadStack.add(() -> setConsole(new ConsoleInit()));
+        sysLoadStack.add(() -> setMouse(getMouse()));
+        sysLoadStack.add(() -> {
             if (console!=null) {io.addIoObject("quickputsystem",console.getQuickPutManager());}
+        });
+        new Thread(() -> {
+            initLoadState = InitLoadState.sys;
+            io.load.loadStart = true;
+            int maxSysInitProgress = sysLoadStack.size();
+            int sysInitProgress = 0;
+            for (DynamicAsset dynamicAsset : sysLoadStack) {
+                dynamicAsset.load();
+                sysInitProgress++;
+                this.sysInitProgress = (float) sysInitProgress / maxSysInitProgress * 100;
+            }
+
+            initLoadState = InitLoadState.assetInit;
+            int maxAssetInitProgress = assetInit.textureAssets.size();
+            int assetInitProgress = 0;
             for (Map.Entry<String, String> entry : assetInit.textureAssets.entrySet()) {
                 String key = entry.getKey();
                 String value = entry.getValue();
 
                 assetManager.loadTexture(AssetManager.LoadMode.SYNC,key,value,null);
+                assetInitProgress++;
+                this.assetInitProgress = (float) assetInitProgress / maxAssetInitProgress * 100;
             }
+
+            initLoadState = InitLoadState.io;
             io.load.load();
             io.load.loadEnd = true;
+
+            initLoadState = InitLoadState.sceneInit;
+            sceneInitProgress = 0.5f;
+            if (currentScene!=null) {
+                try {
+                    currentScene.init();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            sceneInitProgress = 1.0f;
+            initLoadEnd.set(true);
         }).start();
     }
 
@@ -185,6 +236,8 @@ public abstract class Base extends Canvas implements IFrameSize {
         String stringKey;
         Integer integerKey;
         boolean consoleUse;
+        Scene initScene = null;
+
         RenderingOption renderingOption;
 
         public Builder setStringKey(String stringKey) {
@@ -205,6 +258,10 @@ public abstract class Base extends Canvas implements IFrameSize {
         public Builder setRenderingOption(RenderingOption renderingOption) {
             this.renderingOption = renderingOption;
             return this;
+        }
+
+        public void setInitScene(Scene initScene) {
+            this.initScene = initScene;
         }
     }
 
@@ -273,22 +330,46 @@ public abstract class Base extends Canvas implements IFrameSize {
     private void launch() {
         System.out.println(InternalUtils.Time.getTimeFormate() + " / logic thread start");
 
-        running = true;
+        running.set(true);
         logicThread = new Thread(() -> {
             long lastTime = System.nanoTime();
             final double targetFps = 60.0;
             final long nsPerTick = (long) (1000000000.0 / targetFps);
 
-            while (running) {
+            while (running.get()) {
                 long now = System.nanoTime();
                 double deltaTime = (now - lastTime) / 1_000_000_000.0;
                 lastTime = now;
 
                 try {
-                    if (io.load.isLoadEnd()) {
+                    if (!isChangeScene.get()) {
                         update(deltaTime);
+                        return;
                     }
+                    if (isChangeScene.get() && pendingScene != null) {
+                        if (currentScene != null) {
+                            try {
+                                Method method = currentScene.getClass().getDeclaredMethod("dispose");
+                                method.setAccessible(true);
+                                method.invoke(currentScene);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
 
+                        currentScene = pendingScene;
+                        pendingScene = null;
+
+                        new Thread(() -> {
+                            try {
+                                currentScene.init();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            } finally {
+                                isChangeScene.set(false);
+                            }
+                        }).start();
+                    }
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
@@ -301,7 +382,7 @@ public abstract class Base extends Canvas implements IFrameSize {
                         Thread.sleep((timeLeftNs - 2_000_000) / 1_000_000);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        running = false;
+                        running.set(false);
                     }
                 }
 
@@ -316,13 +397,13 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         System.out.println(InternalUtils.Time.getTimeFormate() + " / render thread start");
 
-        running = true;
+        running.set(true);
         renderThread = new Thread(() -> {
             long lastTime = System.nanoTime();
             final double targetFps = 60.0;
             final long nsPerTick = (long) (1000000000.0 / targetFps);
 
-            while (running) {
+            while (running.get()) {
                 long now = System.nanoTime();
                 lastTime = now;
 
@@ -340,7 +421,7 @@ public abstract class Base extends Canvas implements IFrameSize {
                         Thread.sleep((timeLeftNs - 2_000_000) / 1_000_000);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        running = false;
+                        running.set(false);
                     }
                 }
 
@@ -366,7 +447,7 @@ public abstract class Base extends Canvas implements IFrameSize {
             if (currentWidth <= 0 || currentHeight <= 0) return;
 
             ViewMetrics.Snapshot metrics = viewMetrics.getSnapshot();
-            boolean loadingComplete = io.load.isLoadEnd();
+            boolean loadingComplete = initLoadEnd.get();
             boolean experimentalFrame = loadingComplete && renderingOption.equals(RenderingOption.EXPERIMENTAL);
             if (experimentalFrame) {
                 prepareExperimentalFrame();
@@ -434,7 +515,7 @@ public abstract class Base extends Canvas implements IFrameSize {
                     d2.translate(viewMetrics.getCurrentXOffset(), viewMetrics.getCurrentYOffset());
                     d2.scale(viewMetrics.getCurrentScale(), viewMetrics.getCurrentScale());
 
-                    if (!io.load.isLoadEnd()) {
+                    if (!initLoadEnd.get() || isChangeScene.get()) {
                         renderLoadingScreen(d2);
                     } else {
                         render(d2);
@@ -499,7 +580,7 @@ public abstract class Base extends Canvas implements IFrameSize {
                 }
             }
         } else {
-            if (!io.load.isLoadEnd()) {
+            if (!initLoadEnd.get() || isChangeScene.get()) {
                 renderLoadingScreen(d2);
             } else {
                 render(d2);
@@ -580,7 +661,7 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     public abstract void init(BaseInit baseInit);
     public abstract void update(double dt);
-    public abstract void render(Graphics g);
+    public abstract void render(Graphics2D g);
     public void setMouse(Mouse mouse) {}
     public void setConsole(ConsoleInit consoleInit) {}
 
@@ -589,6 +670,15 @@ public abstract class Base extends Canvas implements IFrameSize {
      * It's slower than default render! so this is experimental function.
      */
     public void experimentalRendering(Renderer r) {}
+
+    public void changeScene(Scene newScene) {
+        if (newScene == null) {
+            System.err.println("new scene is null!");
+            return;
+        }
+        this.pendingScene = newScene;
+        this.isChangeScene.set(true);
+    }
 
     @Override public final int getComponentWidth() { return this.getWidth(); }
     @Override public final int getComponentHeight() { return this.getHeight(); }
@@ -608,6 +698,28 @@ public abstract class Base extends Canvas implements IFrameSize {
     public final int getMouseX() { return viewMetrics.getVirtualMouseX(); }
     public final int getMouseY() { return viewMetrics.getVirtualMouseY(); }
 
+    private String getLoadingMessage() {
+        if (isChangeScene.get()) {
+            return "Loading scene...";
+        } else {
+            switch (initLoadState) {
+                case sys -> {
+                    return  "Loading sys...";
+                }
+                case assetInit -> {
+                    return "Loading asset...";
+                }
+                case io -> {
+                    return "Loading file...";
+                }
+                case sceneInit -> {
+                    return "Loading Init Scene...";
+                }
+            }
+        }
+        return "something wrong";
+    }
+
     public final void save() {
         io.save.save();
     }
@@ -616,7 +728,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         save();
         operatorManager.exitOperatorPack.launch();
 
-        running = false;
+        running.set(false);
         if (logicThread != null) {
             try {
                 logicThread.join(1000);
@@ -646,6 +758,9 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     private void renderLoadingScreen(Graphics g) {
         g.drawImage(logo.getVolatileImage(),0,0,1920,1080,null);
+        g.setColor(Color.white);
+        g.setFont(loadingMessageFont);
+        RU.drawStringCenter(g,getLoadingMessage(),960,800);
     }
     private void addDrawCall(int x, int y, Call call) {
         synchronized (drawCalls) {
@@ -680,6 +795,13 @@ public abstract class Base extends Canvas implements IFrameSize {
             @Override public java.text.AttributedCharacterIterator
             cancelLatestCommittedText(java.text.AttributedCharacterIterator.Attribute[] attributes) { return null; }
         };
+    }
+
+    private enum InitLoadState {
+        sys,
+        assetInit,
+        io,
+        sceneInit
     }
 }
 //-Dsun.java2d.opengl=true

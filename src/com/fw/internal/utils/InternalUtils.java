@@ -9,10 +9,13 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Random;
 
 @Internal
 public class InternalUtils {
     private static final BasicStroke basicStroke = new BasicStroke(3f);
+    private static final Random random = new Random();
+    public static Random getRandom() {return random;}
     public static String getProjectFolder() {
         return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName();
     }
@@ -49,5 +52,16 @@ public class InternalUtils {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             return localTime.format(formatter);
         }
+    }
+
+     public static boolean isResourcePath(String path) {
+        if (path == null || path.trim().isEmpty()) {
+            return false;
+        }
+        String trimmed = path.trim();
+        return trimmed.startsWith("/") ||
+                trimmed.startsWith("classpath:") ||
+                trimmed.startsWith("jar:") ||
+                trimmed.contains("!/");
     }
 }

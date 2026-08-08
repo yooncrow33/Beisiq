@@ -1,5 +1,7 @@
 package com.fw.main.utils.platform.system.asset;
 
+import com.fw.internal.utils.InternalUtils;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -42,7 +44,7 @@ public class Texture implements AutoCloseable {
         if (closed) return;
         BufferedImage tempImg = null;
 
-        if (AssetManager.isResourcePath(path)) {
+        if (InternalUtils.isResourcePath(path)) {
             String resourcePath = path.trim();
             if (resourcePath.startsWith("classpath:")) {
                 resourcePath = resourcePath.substring("classpath:".length());

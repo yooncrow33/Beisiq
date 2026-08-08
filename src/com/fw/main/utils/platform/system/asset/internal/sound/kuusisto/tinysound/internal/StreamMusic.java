@@ -40,7 +40,7 @@ import com.fw.main.utils.platform.system.asset.Music;
  *
  * @author Finn Kuusisto
  */
-class StreamMusic implements Music {
+class StreamMusic extends MusicAsset {
 
 	private URL dataURL;
 	private Mixer mixer;

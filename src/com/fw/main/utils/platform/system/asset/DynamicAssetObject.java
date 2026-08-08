@@ -1,5 +1,7 @@
 package com.fw.main.utils.platform.system.asset;
 
+import com.fw.internal.utils.DynamicAsset;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;

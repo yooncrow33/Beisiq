@@ -1,8 +1,11 @@
 package com.fw.main.utils.platform.system.asset;
 
+import com.fw.internal.utils.InternalUtils;
 import com.fw.main.Base;
 import com.fw.main.Fw;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.MusicAsset;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.SoundAsset;
 import com.fw.main.utils.platform.system.console.Console;
 
 import java.awt.image.BufferedImage;
@@ -31,8 +34,8 @@ public class AssetManager {
     private final Queue<Texture> freePool = new ConcurrentLinkedQueue<>();
     private Texture[] pool;
     private final Map<String, Texture> textureActiveMap = new ConcurrentHashMap<>();
-    private final Map<String, Sound> soundActiveMap = new ConcurrentHashMap<>();
-    private final Map<String, Music> musicActiveMap = new ConcurrentHashMap<>();
+    private final Map<String, SoundAsset> soundActiveMap = new ConcurrentHashMap<>();
+    private final Map<String, MusicAsset> musicActiveMap = new ConcurrentHashMap<>();
     private final Map<String, List<DynamicAssetObject>> pendingEvents = new ConcurrentHashMap<>();
     private final Map<String, DynamicAssetObject> pendingObjects = new ConcurrentHashMap<>();
     private final Queue<DynamicAssetObject> daoFreePool = new ConcurrentLinkedQueue<>();
@@ -131,7 +134,7 @@ public class AssetManager {
         return texture;
     }
 
-    public Sound loadSound(LoadMode mode, String assetKey, String path, String eventKey) {
+    public SoundAsset loadSound(LoadMode mode, String assetKey, String path, String eventKey) {
         if (soundActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
             return soundActiveMap.get(assetKey);
         }
@@ -147,7 +150,7 @@ public class AssetManager {
 
         if (mode == LoadMode.SYNC) {
             try {
-                Sound sound = InternalSoundModule.loadSound(url);
+                SoundAsset sound = InternalSoundModule.loadSound(url);
                 if (sound == null) {
                     throw new RuntimeException("Failed to load sound instance: " + assetKey);
                 }
@@ -160,7 +163,7 @@ public class AssetManager {
             DynamicAssetObject dao = getFreeDao();
             dao.init(() -> {
                 try {
-                    Sound sound = InternalSoundModule.loadSound(url);
+                    SoundAsset sound = InternalSoundModule.loadSound(url);
                     if (sound == null) {
                         throw new RuntimeException("Failed to load sound instance: " + assetKey);
                     }
@@ -176,7 +179,7 @@ public class AssetManager {
         return null;
     }
 
-    public Music loadMusic(LoadMode mode, MusicType type, String assetKey, String path, String eventKey) {
+    public MusicAsset loadMusic(LoadMode mode, MusicType type, String assetKey, String path, String eventKey) {
         if (musicActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
             return musicActiveMap.get(assetKey);
         }
@@ -192,7 +195,7 @@ public class AssetManager {
 
         if (mode == LoadMode.SYNC) {
             try {
-                Music music = createMusicInstance(type, url);
+                MusicAsset music = createMusicInstance(type, url);
                 if (music == null) {
                     throw new RuntimeException("Failed to load music instance: " + assetKey);
                 }
@@ -205,7 +208,7 @@ public class AssetManager {
             DynamicAssetObject dao = getFreeDao();
             dao.init(() -> {
                 try {
-                    Music music = createMusicInstance(type, url);
+                    MusicAsset music = createMusicInstance(type, url);
                     if (music == null) {
                         throw new RuntimeException("Failed to load music instance: " + assetKey);
                     }
@@ -221,7 +224,7 @@ public class AssetManager {
         return null;
     }
 
-    private Music createMusicInstance(MusicType type, java.net.URL url) {
+    private MusicAsset createMusicInstance(MusicType type, java.net.URL url) {
         return switch (type) {
             case MEM_MUSIC -> InternalSoundModule.loadMusic(url, false);
             case STREAM_MUSIC -> InternalSoundModule.loadMusic(url, true);
@@ -231,7 +234,7 @@ public class AssetManager {
     private java.net.URL resolveAudioUrl(String path) {
         if (path == null) return null;
         try {
-            if (isResourcePath(path)) {
+            if (InternalUtils.isResourcePath(path)) {
                 String resPath = path.startsWith("/") ? path : "/" + path;
                 return InternalSoundModule.class.getResource(resPath);
             } else {
@@ -355,7 +358,7 @@ public class AssetManager {
                 }
             }
             case SOUND -> {
-                Sound sound = soundActiveMap.remove(assetKey);
+                SoundAsset sound = soundActiveMap.remove(assetKey);
                 if (sound != null) {
                     sound.stop();
                     sound.free();
@@ -369,7 +372,7 @@ public class AssetManager {
                 }
             }
             case MUSIC -> {
-                Music music = musicActiveMap.remove(assetKey);
+                MusicAsset music = musicActiveMap.remove(assetKey);
                 if (music != null) {
                     music.stop();
                     music.free();
@@ -392,7 +395,7 @@ public class AssetManager {
         pendingObjects.clear();
         pendingEvents.clear();
 
-        for (Sound sound : soundActiveMap.values()) {
+        for (SoundAsset sound : soundActiveMap.values()) {
             if (sound != null) {
                 sound.stop();
                 sound.free();
@@ -400,7 +403,7 @@ public class AssetManager {
         }
         soundActiveMap.clear();
 
-        for (Music sound : musicActiveMap.values()) {
+        for (MusicAsset sound : musicActiveMap.values()) {
             if (sound != null) {
                 sound.stop();
                 sound.free();
@@ -423,17 +426,8 @@ public class AssetManager {
         }
         daoFreePool.clear();
         if (daoPool != null) Collections.addAll(daoFreePool, daoPool);
-    }
 
-    static boolean isResourcePath(String path) {
-        if (path == null || path.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = path.trim();
-        return trimmed.startsWith("/") ||
-                trimmed.startsWith("classpath:") ||
-                trimmed.startsWith("jar:") ||
-                trimmed.contains("!/");
+        InternalSoundModule.shutdown();
     }
 
     public class SoundAPI {

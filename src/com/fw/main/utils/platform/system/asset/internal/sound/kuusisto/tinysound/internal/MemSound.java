@@ -40,7 +40,7 @@ import java.lang.reflect.Field;
  *
  * @author Finn Kuusisto
  */
-class MemSound implements Sound {
+class MemSound extends SoundAsset{
 
     static final Unsafe unsafe;
     static {

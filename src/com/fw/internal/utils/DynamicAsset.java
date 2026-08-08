@@ -1,4 +1,4 @@
-package com.fw.main.utils.platform.system.asset;
+package com.fw.internal.utils;
 
 public interface DynamicAsset {
     void load();

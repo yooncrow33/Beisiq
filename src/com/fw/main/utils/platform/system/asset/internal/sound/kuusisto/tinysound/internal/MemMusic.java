@@ -39,7 +39,7 @@ import java.lang.reflect.Field;
  * all audio data in memory for low latency.
  */
 
-class MemMusic implements Music {
+class MemMusic extends MusicAsset {
 
     static final Unsafe unsafe;
     static {

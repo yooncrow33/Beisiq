@@ -60,11 +60,4 @@ public interface Sound {
 	 * playing will be stopped.
 	 */
 	public void stop();
-	
-	/**
-	 * Unloads this Sound from the system.  Attempts to use this Sound after
-	 * unloading will result in error.
-	 */
-	public void free();
-	
 }

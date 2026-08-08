@@ -216,7 +216,7 @@ public class InternalSoundModule {
 	 * @param name name of the Music resource
 	 * @return Music resource as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(String name) {
+	public static MusicAsset loadMusic(String name) {
 		return InternalSoundModule.loadMusic(name, false);
 	}
 	
@@ -228,7 +228,7 @@ public class InternalSoundModule {
 	 * temporary file to reduce memory overhead
 	 * @return Music resource as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(String name, boolean streamFromFile) {
+	public static MusicAsset loadMusic(String name, boolean streamFromFile) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
@@ -256,7 +256,7 @@ public class InternalSoundModule {
 	 * @param file the Music file to loadTexture
 	 * @return Music from file as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(File file) {
+	public static MusicAsset loadMusic(File file) {
 		return InternalSoundModule.loadMusic(file, false);
 	}
 	
@@ -267,7 +267,7 @@ public class InternalSoundModule {
 	 * temporary file to reduce memory overhead
 	 * @return Music from file as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(File file, boolean streamFromFile) {
+	public static MusicAsset loadMusic(File file, boolean streamFromFile) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
@@ -292,7 +292,7 @@ public class InternalSoundModule {
 	 * @param url the URL of the Music
 	 * @return Music from URL as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(URL url) {
+	public static MusicAsset loadMusic(URL url) {
 		return InternalSoundModule.loadMusic(url, false);
 	}
 	
@@ -303,7 +303,7 @@ public class InternalSoundModule {
 	 * temporary file to reduce memory overhead
 	 * @return Music from URL as specified, null if not found/loaded
 	 */
-	public static Music loadMusic(URL url, boolean streamFromFile) {
+	public static MusicAsset loadMusic(URL url, boolean streamFromFile) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
@@ -355,7 +355,7 @@ public class InternalSoundModule {
 	 * temporary file to reduce memory overhead
 	 * @return Sound resource as specified, null if not found/loaded
 	 */
-	public static Sound loadSound(String name) {
+	public static SoundAsset loadSound(String name) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
@@ -385,7 +385,7 @@ public class InternalSoundModule {
 	 * temporary file to reduce memory overhead
 	 * @return Sound from file as specified, null if not found/loaded
 	 */
-	public static Sound loadSound(File file) {
+	public static SoundAsset loadSound(File file) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
@@ -410,7 +410,7 @@ public class InternalSoundModule {
      * @param url the URL of the Sound
      * @return Sound from URL as specified, null if not found/loaded
      */
-    public static Sound loadSound(URL url) {
+    public static SoundAsset loadSound(URL url) {
         // 1. 시스템 초기화 체크
         if (!InternalSoundModule.inited) {
             System.err.println("TinySound not initialized!");
