@@ -34,8 +34,6 @@ class Main extends InternalSoundModule {
             throw new RuntimeException("Stream size is invalid or too large for off-heap allocation.");
         }
 
-        // 16-bit stereo = 1 프레임당 (Left 2bytes + Right 2bytes) = 총 4bytes
-        // 채널당 필요한 바이트 수 = frameLength * 2
         int bytesPerChannel = (int) frameLength * 2;
         long leftAddr = 0;
         long rightAddr = 0;
@@ -46,25 +44,22 @@ class Main extends InternalSoundModule {
 
             byte[] chunk = new byte[4096];
             int numRead;
-            int channelOffset = 0; // 채널별 바이트 오프셋
+            int channelOffset = 0;
 
             while ((numRead = stream.read(chunk)) > -1) {
-                // Interleaved Stereo (L1_low, L1_high, R1_low, R1_high, ...) 처리
-                int limit = numRead - (numRead % 4); // 4바이트(1 프레임) 단위로 정렬
+                int limit = numRead - (numRead % 4);
 
                 for (int i = 0; i < limit; i += 4) {
                     if (channelOffset >= bytesPerChannel) {
                         break;
                     }
-                    // Left Channel (2 Bytes)
                     unsafe.putByte(leftAddr + channelOffset, chunk[i]);
                     unsafe.putByte(leftAddr + channelOffset + 1, chunk[i + 1]);
 
-                    // Right Channel (2 Bytes)
                     unsafe.putByte(rightAddr + channelOffset, chunk[i + 2]);
                     unsafe.putByte(rightAddr + channelOffset + 1, chunk[i + 3]);
 
-                    channelOffset += 2; // 채널당 2바이트씩 누적
+                    channelOffset += 2;
                 }
 
                 if (channelOffset >= bytesPerChannel) {

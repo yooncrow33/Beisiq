@@ -1,9 +1,8 @@
 package com.test;
 
+import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.io.DynamicIo;
 import com.fw.main.api.io.DynamicIoLoadObject;
-import com.fw.main.api.io.Io;
-import com.fw.internal.sys.operator.OperatorManager;
 import com.fw.main.*;
 import com.fw.main.api.io.IoInterface;
 import com.fw.main.api.sys.ConsoleCMD;
@@ -11,7 +10,6 @@ import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
 import com.fw.main.utils.io.IoUtils;
-import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.asset.Texture;
 
 import java.awt.*;
@@ -20,11 +18,11 @@ import java.util.Properties;
 
 public class Test extends Base {
     KoreanObject ko = new KoreanObject();
-    float aFloat;
-    Texture perfect = assetManager.loadTexture(AssetManager.LoadMode.LAZY,"1.0", IoUtils.getCurrentResourceFolder()+"1.0.png", "perfect");
+    float updatable;
+    int degree = 1;
+    int degree2 = 1;
     Texture logo;
 
-    //이건 그냥 엔진의 사용법을 최대한 많이 나타낸 코드일뿐....
     static {
         Core.setConfig(new
                 Config.Builder("CivitasTest"). // = folder name.
@@ -56,6 +54,7 @@ public class Test extends Base {
 
             }
         });
+
         logo = assetManager.getTexture("logo");
     }
 
@@ -64,7 +63,12 @@ public class Test extends Base {
         c.registerConsoleCMD(new ConsoleCMD() {
             @Override
             public void CMD(List<String> args) {
-
+                if (args.get(0).equals("test")) {
+                    degree = Integer.parseInt(args.get(1));
+                }
+                if (args.get(0).equals("test2")) {
+                    degree2 = Integer.parseInt(args.get(1));
+                }
             }
         });
     }
@@ -76,6 +80,11 @@ public class Test extends Base {
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
 
+        for (int i = 0; i<500; i++) {
+            init.getAssetInit().registerBootAsset("index_"+i,
+                    InternalUtils.getEngineResourceStream("Beisiq2.png"));
+        }
+
         init.getOperatorManager().exitOperatorPack.addOperator(new Operator() {
             @Override
             public void exe() {
@@ -83,20 +92,27 @@ public class Test extends Base {
             }
         });
 
+        init.getOperatorManager().exitOperatorPack.addOperator(new Operator() {
+            @Override
+            public void exe() {
+                System.exit(0);
+            }
+        });
+
         init.getIo().addIoObject("default", new IoInterface() {
             @Override
             public void save(Properties p) {
-                p.setProperty("float", Float.toString(aFloat));
+                p.setProperty("float", Float.toString(updatable));
             }
 
             @Override
             public void load(Properties p) {
-                aFloat = Float.parseFloat((String) p.get("float"));
+                updatable = Float.parseFloat((String) p.get("float"));
             }
 
             @Override
             public void initLoad(Properties p) {
-                aFloat = (float) Math.random();
+                updatable = (float) Math.random();
             }
         });
 
@@ -106,17 +122,11 @@ public class Test extends Base {
                 //loads...
             }
         }).launch();
-
-        //assetInit.registerBootAsset(AssetInit.RootType.IS_ON_RESOURCE,"test", "yourImage.png");
     }
 
     @Override
     public void update(double dt) {
-        aFloat = (float) Math.random();
-        if (aFloat == 1.0) {
-            assetManager.event("perfect");
-            //loadTexture perfect Texture!
-        }
+        updatable = (float) Math.random();
     }
 
     @Override
@@ -143,7 +153,12 @@ public class Test extends Base {
                 isViewScaleSnapped() ? ", snapped" : ""
         ), 550, 800);
 
-        g.drawImage(logo.getVolatileImage(),10,1000,70,70,null);
+        for (int i = 0; i < degree; i++) {
+            g.drawRect(200 + (i & 1023), 200, 10, 10);
+        }
+        for (int i = 0; i < degree2; i++) {
+            g.drawImage(logo.getVolatileImage(),200 + (i & 1023), 220, 10, 10,null);
+        }
 
     }
 

@@ -9,10 +9,13 @@ import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound
 import com.fw.main.utils.platform.system.console.Console;
 
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 
 public class AssetManager {
     public enum LoadMode {
@@ -99,13 +102,25 @@ public class AssetManager {
         return dao;
     }
 
-    public Texture loadTexture(LoadMode mode, String assetKey, String path, String eventKey) {
+    /**
+     * Loads a texture using an {@link InputStream}.
+     *
+     * @param mode the loading mode (SYNC or LAZY)
+     * @param assetKey the unique key identifying the texture
+     * @param is the input stream of the texture asset
+     * @param eventKey the event key associated with LAZY loading
+     * @return the loaded {@link Texture} instance
+     */
+    public Texture loadTexture(LoadMode mode, String assetKey, InputStream is, String eventKey) {
+        if (is == null) {
+            throw new IllegalArgumentException("InputStream cannot be null for texture assetKey: " + assetKey);
+        }
         if (textureActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
             return textureActiveMap.get(assetKey);
         }
 
         Texture texture = getFreeTexture();
-        texture.init(assetKey, path);
+        texture.init(assetKey, is);
 
         if (mode == LoadMode.SYNC) {
             try {
@@ -134,7 +149,19 @@ public class AssetManager {
         return texture;
     }
 
-    public SoundAsset loadSound(LoadMode mode, String assetKey, String path, String eventKey) {
+    /**
+     * Loads a sound using an {@link InputStream}.
+     *
+     * @param mode the loading mode (SYNC or LAZY)
+     * @param assetKey the unique key identifying the sound
+     * @param is the input stream of the sound asset
+     * @param eventKey the event key associated with LAZY loading
+     * @return the loaded {@link SoundAsset} instance, or {@code null} if in LAZY mode
+     */
+    public SoundAsset loadSound(LoadMode mode, String assetKey, InputStream is, String eventKey) {
+        if (is == null) {
+            throw new IllegalArgumentException("InputStream cannot be null for sound assetKey: " + assetKey);
+        }
         if (soundActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
             return soundActiveMap.get(assetKey);
         }
@@ -143,14 +170,9 @@ public class AssetManager {
             InternalSoundModule.init();
         }
 
-        java.net.URL url = resolveAudioUrl(path);
-        if (url == null) {
-            throw new IllegalArgumentException("Invalid sound path: " + path);
-        }
-
         if (mode == LoadMode.SYNC) {
             try {
-                SoundAsset sound = InternalSoundModule.loadSound(url);
+                SoundAsset sound = InternalSoundModule.loadSound(is);
                 if (sound == null) {
                     throw new RuntimeException("Failed to load sound instance: " + assetKey);
                 }
@@ -163,7 +185,7 @@ public class AssetManager {
             DynamicAssetObject dao = getFreeDao();
             dao.init(() -> {
                 try {
-                    SoundAsset sound = InternalSoundModule.loadSound(url);
+                    SoundAsset sound = InternalSoundModule.loadSound(is);
                     if (sound == null) {
                         throw new RuntimeException("Failed to load sound instance: " + assetKey);
                     }
@@ -179,7 +201,20 @@ public class AssetManager {
         return null;
     }
 
-    public MusicAsset loadMusic(LoadMode mode, MusicType type, String assetKey, String path, String eventKey) {
+    /**
+     * Loads music using an {@link InputStream}.
+     *
+     * @param mode the loading mode (SYNC or LAZY)
+     * @param type the music type (MEM_MUSIC or STREAM_MUSIC)
+     * @param assetKey the unique key identifying the music
+     * @param is the input stream of the music asset
+     * @param eventKey the event key associated with LAZY loading
+     * @return the loaded {@link MusicAsset} instance, or {@code null} if in LAZY mode
+     */
+    public MusicAsset loadMusic(LoadMode mode, MusicType type, String assetKey, InputStream is, String eventKey) {
+        if (is == null) {
+            throw new IllegalArgumentException("InputStream cannot be null for music assetKey: " + assetKey);
+        }
         if (musicActiveMap.containsKey(assetKey) || pendingObjects.containsKey(assetKey)) {
             return musicActiveMap.get(assetKey);
         }
@@ -188,14 +223,9 @@ public class AssetManager {
             InternalSoundModule.init();
         }
 
-        java.net.URL url = resolveAudioUrl(path);
-        if (url == null) {
-            throw new IllegalArgumentException("Invalid music path: " + path);
-        }
-
         if (mode == LoadMode.SYNC) {
             try {
-                MusicAsset music = createMusicInstance(type, url);
+                MusicAsset music = createMusicInstance(type, is);
                 if (music == null) {
                     throw new RuntimeException("Failed to load music instance: " + assetKey);
                 }
@@ -208,7 +238,7 @@ public class AssetManager {
             DynamicAssetObject dao = getFreeDao();
             dao.init(() -> {
                 try {
-                    MusicAsset music = createMusicInstance(type, url);
+                    MusicAsset music = createMusicInstance(type, is);
                     if (music == null) {
                         throw new RuntimeException("Failed to load music instance: " + assetKey);
                     }
@@ -224,25 +254,11 @@ public class AssetManager {
         return null;
     }
 
-    private MusicAsset createMusicInstance(MusicType type, java.net.URL url) {
+    private MusicAsset createMusicInstance(MusicType type, InputStream is) {
         return switch (type) {
-            case MEM_MUSIC -> InternalSoundModule.loadMusic(url, false);
-            case STREAM_MUSIC -> InternalSoundModule.loadMusic(url, true);
+            case MEM_MUSIC -> InternalSoundModule.loadMusic(is, false);
+            case STREAM_MUSIC -> InternalSoundModule.loadMusic(is, true);
         };
-    }
-
-    private java.net.URL resolveAudioUrl(String path) {
-        if (path == null) return null;
-        try {
-            if (InternalUtils.isResourcePath(path)) {
-                String resPath = path.startsWith("/") ? path : "/" + path;
-                return InternalSoundModule.class.getResource(resPath);
-            } else {
-                return new java.io.File(path).toURI().toURL();
-            }
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     public void event(String eventKey) {

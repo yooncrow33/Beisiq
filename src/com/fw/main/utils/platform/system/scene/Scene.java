@@ -5,12 +5,15 @@ import com.fw.main.Base;
 import com.fw.main.utils.platform.system.asset.Sound;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 
+import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 public final class Scene {
     AtomicBoolean loaded = new AtomicBoolean(false);
@@ -39,8 +42,8 @@ public final class Scene {
         final List<TempTexture> tempTextures = new ArrayList<>();
         final Map<String, Sprite> pendingSprites = new ConcurrentHashMap<>();
 
-        public Sprite registerSprite(String path, String key) throws Exception {
-            tempTextures.add(new TempTexture(path, key));
+        public Sprite registerSprite(InputStream is, String key) throws Exception {
+            tempTextures.add(new TempTexture(is, key));
 
             //아틀라스가 이미지들을 읽고 패킹하기 전이기 때문에 이 스프라이트 객체는 껍대기입니다. 진짜는 아틀라스 객체 초기화시 됩니다.
             //게임엔진상 아틀라스 로딩되는 동안은 무조건 렌더링이 막히기 때문에 스프라이트의 실제 값이 호출될 수 없습니다. 안전합니다.
@@ -58,18 +61,18 @@ public final class Scene {
             this.scene = scene;
         }
 
-        public Sfx registerSound(String path) {
-            return new Sfx(InternalSoundModule.loadSound(path),scene);
+        public Sfx registerSound(InputStream is) {
+            return new Sfx(InternalSoundModule.loadSound(is), scene);
         }
-        public Bgm registerMusic(String path) {
-            return new Bgm(InternalSoundModule.loadMusic(path),scene);
+
+        public Bgm registerMusic(InputStream is, boolean isStream) {
+            return new Bgm(InternalSoundModule.loadMusic(is, isStream), scene);
         }
 
 
         public void createAtlas(String name, int padding, AtlasBinderCallback callback) throws Exception {
             AtlasBinder binder = new AtlasBinder();
 
-            // 1. 익명 클래스의 execute()를 실행하여 tempTextures와 pendingSprites를 수집
             callback.execute(binder);
 
             if (binder.tempTextures.isEmpty()) {

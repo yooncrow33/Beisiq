@@ -27,13 +27,7 @@
  */
 package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -209,111 +203,19 @@ public class InternalSoundModule {
 		}
 		InternalSoundModule.mixer.setVolume(volume);
 	}
-	
-	/**
-	 * Load a Music by a resource name.  The resource must be on the classpath
-	 * for this to work.  This will store audio data in memory.
-	 * @param name name of the Music resource
-	 * @return Music resource as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(String name) {
-		return InternalSoundModule.loadMusic(name, false);
-	}
-	
-	/**
-	 * Load a Music by a resource name.  The resource must be on the classpath
-	 * for this to work.
-	 * @param name name of the Music resource
-	 * @param streamFromFile true if this Music should be streamed from a
-	 * temporary file to reduce memory overhead
-	 * @return Music resource as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(String name, boolean streamFromFile) {
+
+    public static MusicAsset loadMusic(InputStream is, boolean streamFromFile) {
 		//check if the system is initialized
 		if (!InternalSoundModule.inited) {
 			System.err.println("TinySound not initialized!");
 			return null;
 		}
 		//check for failure
-		if (name == null) {
+		if (is == null) {
 			return null;
 		}
-		//check for correct naming
-		if (!name.startsWith("/")) {
-			name = "/" + name;
-		}
-		URL url = InternalSoundModule.class.getResource(name);
-		//check for failure to find resource
-		if (url == null) {
-			System.err.println("Unable to find resource " + name + "!");
-			return null;
-		}
-		return InternalSoundModule.loadMusic(url, streamFromFile);
-	}
-	
-	/**
-	 * Load a Music by a File.  This will store audio data in memory.
-	 * @param file the Music file to loadTexture
-	 * @return Music from file as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(File file) {
-		return InternalSoundModule.loadMusic(file, false);
-	}
-	
-	/**
-	 * Load a Music by a File.
-	 * @param file the Music file to loadTexture
-	 * @param streamFromFile true if this Music should be streamed from a
-	 * temporary file to reduce memory overhead
-	 * @return Music from file as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(File file, boolean streamFromFile) {
-		//check if the system is initialized
-		if (!InternalSoundModule.inited) {
-			System.err.println("TinySound not initialized!");
-			return null;
-		}
-		//check for failure
-		if (file == null) {
-			return null;
-		}
-		URL url = null;
-		try {
-			url = file.toURI().toURL();
-		} catch (MalformedURLException e) {
-			System.err.println("Unable to find file " + file + "!");
-			return null;
-		}
-		return InternalSoundModule.loadMusic(url, streamFromFile);
-	}
-	
-	/**
-	 * Load a Music by a URL.  This will store audio data in memory.
-	 * @param url the URL of the Music
-	 * @return Music from URL as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(URL url) {
-		return InternalSoundModule.loadMusic(url, false);
-	}
-	
-	/**
-	 * Load a Music by a URL.
-	 * @param url the URL of the Music
-	 * @param streamFromFile true if this Music should be streamed from a
-	 * temporary file to reduce memory overhead
-	 * @return Music from URL as specified, null if not found/loaded
-	 */
-	public static MusicAsset loadMusic(URL url, boolean streamFromFile) {
-		//check if the system is initialized
-		if (!InternalSoundModule.inited) {
-			System.err.println("TinySound not initialized!");
-			return null;
-		}
-		//check for failure
-		if (url == null) {
-			return null;
-		}
-        AudioInputStream audioStream = InternalSoundModule.getValidAudioStream(url);
+
+        AudioInputStream audioStream = InternalSoundModule.getValidAudioStream(is);
         if (audioStream == null) return null;
 
 		//try to read all the bytes
@@ -348,91 +250,21 @@ public class InternalSoundModule {
         }
 	}
 
-	/**
-	 * Load a Sound by a resource name.  The resource must be on the classpath
-	 * for this to work.
-	 * @param name name of the Sound resource
-	 * temporary file to reduce memory overhead
-	 * @return Sound resource as specified, null if not found/loaded
-	 */
-	public static SoundAsset loadSound(String name) {
-		//check if the system is initialized
-		if (!InternalSoundModule.inited) {
-			System.err.println("TinySound not initialized!");
-			return null;
-		}
-		//check for failure
-		if (name == null) {
-			return null;
-		}
-		//check for correct naming
-		if (!name.startsWith("/")) {
-			name = "/" + name;
-		}
-		URL url = InternalSoundModule.class.getResource(name);
-		//check for failure to find resource
-		if (url == null) {
-			System.err.println("Unable to find resource " + name + "!");
-			return null;
-		}
-		return InternalSoundModule.loadSound(url);
 
-	}
-	
-	/**
-	 * Load a Sound by a File.
-	 * @param file the Sound file to loadTexture
-	 * temporary file to reduce memory overhead
-	 * @return Sound from file as specified, null if not found/loaded
-	 */
-	public static SoundAsset loadSound(File file) {
-		//check if the system is initialized
-		if (!InternalSoundModule.inited) {
-			System.err.println("TinySound not initialized!");
-			return null;
-		}
-		//check for failure
-		if (file == null) {
-			return null;
-		}
-		URL url = null;
-		try {
-			url = file.toURI().toURL();
-		} catch (MalformedURLException e) {
-			System.err.println("Unable to find file " + file + "!");
-			return null;
-		}
-		return InternalSoundModule.loadSound(url);
-	}
-
-    /**
-     * Load a Sound by a URL.  This will store audio data in memory (Off-Heap).
-     * @param url the URL of the Sound
-     * @return Sound from URL as specified, null if not found/loaded
-     */
-    public static SoundAsset loadSound(URL url) {
-        // 1. 시스템 초기화 체크
-        if (!InternalSoundModule.inited) {
-            System.err.println("TinySound not initialized!");
-            return null;
-        }
-        if (url == null) {
+    public static SoundAsset loadSound(InputStream is) {
+        if (!InternalSoundModule.inited || is == null) {
+            System.err.println("TinySound not initialized or null stream!");
             return null;
         }
 
-        // 2. 유효한 오디오 스트림(16-bit, 2-channel 포맷 변환) 가져오기
-        AudioInputStream audioStream = InternalSoundModule.getValidAudioStream(url);
-        if (audioStream == null) {
-            return null;
-        }
+        AudioInputStream audioStream = InternalSoundModule.getValidAudioStream(is);
+        if (audioStream == null) return null;
 
-        // 3. 다이렉트 오프힙(Off-Heap) 메모리 할당 및 MemSound 객체 반환
         try {
             int soundId = InternalSoundModule.soundCount++;
-            // byte[][] 변환이나 임시 파일을 거치지 않고 곧바로 파싱합니다.
             return Main.loadMemSoundDirectly(audioStream, soundId);
         } catch (Exception e) {
-            System.err.println("Failed to loadTexture sound directly to Off-Heap: " + e.getMessage());
+            System.err.println("Failed to load sound directly to Off-Heap: " + e.getMessage());
             return null;
         }
     }
@@ -519,86 +351,52 @@ public class InternalSoundModule {
 		}
 		return data;
 	}
-	
-	/**
-	 * Gets and AudioInputStream in the TinySound system format.
-	 * @param url URL of the resource
-	 * @return the specified stream as an AudioInputStream stream, null if
-	 * failure
-	 */
-	private static AudioInputStream getValidAudioStream(URL url) {
-		AudioInputStream audioStream = null;
-		try {
-			audioStream = AudioSystem.getAudioInputStream(url);
-			AudioFormat streamFormat = audioStream.getFormat();
-			//1-channel can also be treated as stereo
-			AudioFormat mono16 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-					44100, 16, 1, 2, 44100, false);
-			//1 or 2 channel 8-bit may be easy to convert
-			AudioFormat mono8 =	new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-					44100, 8, 1, 1, 44100, false);
-			AudioFormat stereo8 =
-				new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 8, 2, 2,
-					44100, false);
-			//now check formats (attempt conversion as needed)
-			if (streamFormat.matches(InternalSoundModule.FORMAT) ||
-					streamFormat.matches(mono16)) {
-				return audioStream;
-			} //check conversion to TinySound format
-			else if (AudioSystem.isConversionSupported(InternalSoundModule.FORMAT,
-					streamFormat)) {
-				audioStream = AudioSystem.getAudioInputStream(InternalSoundModule.FORMAT,
-						audioStream);
-			} //check conversion to mono alternate
-			else if (AudioSystem.isConversionSupported(mono16, streamFormat)) {
-				audioStream = AudioSystem.getAudioInputStream(mono16,
-						audioStream);
-			} //try convert from 8-bit, 2-channel
-			else if (streamFormat.matches(stereo8) ||
-					AudioSystem.isConversionSupported(stereo8, streamFormat)) {
-				//convert to 8-bit stereo first?
-				if (!streamFormat.matches(stereo8)) {
-					audioStream = AudioSystem.getAudioInputStream(stereo8,
-							audioStream);
-				}
-				audioStream = InternalSoundModule.convertStereo8Bit(audioStream);
-			} //try convert from 8-bit, 1-channel
-			else if (streamFormat.matches(mono8) ||
-					AudioSystem.isConversionSupported(mono8, streamFormat)) {
-				//convert to 8-bit mono first?
-				if (!streamFormat.matches(mono8)) {
-					audioStream = AudioSystem.getAudioInputStream(mono8,
-							audioStream);
-				}
-				audioStream = InternalSoundModule.convertMono8Bit(audioStream);
-			} //it's time to give up
-			else {
-				System.err.println("Unable to convert audio resource!");
-				System.err.println(url);
-				System.err.println(streamFormat);
-				audioStream.close();
-				return null;
-			}
-			//check the frame length
-			long frameLength = audioStream.getFrameLength();
-			//too long
-			if (frameLength > Integer.MAX_VALUE) {
-				System.err.println("Audio resource too long!");
-				return null;
-			}
-		}
-		catch (UnsupportedAudioFileException e) {
-			System.err.println("Unsupported audio resource!\n" +
-					e.getMessage());
-			return null;
-		}
-		catch (IOException e) {
-			System.err.println("Error getting resource stream!\n" +
-					e.getMessage());
-			return null;
-		}
-		return audioStream;
-	}
+
+    private static AudioInputStream getValidAudioStream(InputStream is) {
+        AudioInputStream audioStream = null;
+        try {
+            audioStream = AudioSystem.getAudioInputStream(is);
+            AudioFormat streamFormat = audioStream.getFormat();
+
+            AudioFormat mono16 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 1, 2, 44100, false);
+            AudioFormat mono8  = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 8, 1, 1, 44100, false);
+            AudioFormat stereo8 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 8, 2, 2, 44100, false);
+
+            if (streamFormat.matches(InternalSoundModule.FORMAT) || streamFormat.matches(mono16)) {
+                return audioStream;
+            } else if (AudioSystem.isConversionSupported(InternalSoundModule.FORMAT, streamFormat)) {
+                audioStream = AudioSystem.getAudioInputStream(InternalSoundModule.FORMAT, audioStream);
+            } else if (AudioSystem.isConversionSupported(mono16, streamFormat)) {
+                audioStream = AudioSystem.getAudioInputStream(mono16, audioStream);
+            } else if (streamFormat.matches(stereo8) || AudioSystem.isConversionSupported(stereo8, streamFormat)) {
+                if (!streamFormat.matches(stereo8)) {
+                    audioStream = AudioSystem.getAudioInputStream(stereo8, audioStream);
+                }
+                audioStream = InternalSoundModule.convertStereo8Bit(audioStream);
+            } else if (streamFormat.matches(mono8) || AudioSystem.isConversionSupported(mono8, streamFormat)) {
+                if (!streamFormat.matches(mono8)) {
+                    audioStream = AudioSystem.getAudioInputStream(mono8, audioStream);
+                }
+                audioStream = InternalSoundModule.convertMono8Bit(audioStream);
+            } else {
+                System.err.println("Unable to convert audio resource format: " + streamFormat);
+                audioStream.close();
+                return null;
+            }
+
+            if (audioStream.getFrameLength() > Integer.MAX_VALUE) {
+                System.err.println("Audio resource too long!");
+                return null;
+            }
+        } catch (UnsupportedAudioFileException e) {
+            System.err.println("Unsupported audio resource format: " + e.getMessage());
+            return null;
+        } catch (IOException e) {
+            System.err.println("Error reading audio resource stream: " + e.getMessage());
+            return null;
+        }
+        return audioStream;
+    }
 	
 	/**
 	 * Converts an 8-bit, signed, 1-channel AudioInputStream to 16-bit, signed,

@@ -7,11 +7,14 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.VolatileImage;
 import java.io.File;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.function.Supplier;
 
 public class Texture implements AutoCloseable {
     private GraphicsConfiguration config;
     private volatile String assetKey;
-    private volatile String path;
+    private volatile InputStream assetStream;
     private volatile boolean closed = false;
 
     private BufferedImage backupImage;
@@ -31,9 +34,9 @@ public class Texture implements AutoCloseable {
         this.assetManager = assetManager;
     }
 
-    public void init(String assetKey, String path) {
+    public void init(String assetKey, InputStream assetStream) {
         this.assetKey = assetKey;
-        this.path = path;
+        this.assetStream = assetStream;
         this.inUse = true;
         this.closed = false;
     }
@@ -41,35 +44,21 @@ public class Texture implements AutoCloseable {
     public void setInUse(boolean use) { this.inUse = use; }
 
     public synchronized void loadData() throws Exception {
-        if (closed) return;
-        BufferedImage tempImg = null;
+        if (closed || assetStream == null) return;
+        BufferedImage tempImg;
 
-        if (InternalUtils.isResourcePath(path)) {
-            String resourcePath = path.trim();
-            if (resourcePath.startsWith("classpath:")) {
-                resourcePath = resourcePath.substring("classpath:".length());
-            }
-            if (!resourcePath.startsWith("/")) {
-                resourcePath = "/" + resourcePath;
-            }
-
-            try (java.io.InputStream is = Texture.class.getResourceAsStream(resourcePath)) {
-                if (is != null) {
-                    tempImg = ImageIO.read(is);
-                }
-            }
-        } else {
-            File file = new File(this.path);
-            if (file.exists()) {
-                tempImg = ImageIO.read(file);
-            }
+        try (InputStream is = this.assetStream) {
+            tempImg = ImageIO.read(is);
+        } finally {
+            this.assetStream = null;
         }
 
-        if (tempImg == null) throw new RuntimeException("Texture loadTexture fail: " + this.path);
+        if (tempImg == null) {
+            throw new RuntimeException("Texture load fail: " + this.assetKey);
+        }
 
         this.width = tempImg.getWidth();
         this.height = tempImg.getHeight();
-
         this.backupImage = tempImg;
     }
 
@@ -124,7 +113,7 @@ public class Texture implements AutoCloseable {
 
         inUse = false;
         assetKey = null;
-        path = null;
+        assetStream = null;
     }
 
     public boolean isInUse() { return inUse; }

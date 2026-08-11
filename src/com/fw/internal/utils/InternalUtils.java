@@ -5,7 +5,7 @@ import com.fw.main.Core;
 
 import java.awt.*;
 import java.io.File;
-import java.net.URL;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -15,23 +15,39 @@ import java.util.Random;
 public class InternalUtils {
     private static final BasicStroke basicStroke = new BasicStroke(3f);
     private static final Random random = new Random();
-    public static Random getRandom() {return random;}
-    public static String getProjectFolder() {
-        return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName();
-    }
-    public static String getAssetFolder() {
-        return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName() + File.separator + "asset";
+
+    public static Random getRandom() {
+        return random;
     }
 
     /**
-     * It's include last separator.
+     * Retrieves an {@link InputStream} for a resource located exclusively within the engine's JAR.
+     *
+     * @param resourcePath the relative or absolute classpath path to the resource
+     * @return the {@link InputStream} of the engine resource, or {@code null} if not found
      */
-    public static String getJarResourceFolder() {
-        URL resource = InternalUtils.class.getResource("/");
-        if (resource != null) {
-            return "/";
+    public static InputStream getEngineResourceStream(String resourcePath) {
+        if (resourcePath == null || resourcePath.trim().isEmpty()) {
+            return null;
         }
-        return "/";
+
+        String cleanPath = resourcePath.trim();
+        if (cleanPath.startsWith("classpath:")) {
+            cleanPath = cleanPath.substring(10);
+        }
+        while (cleanPath.startsWith("/")) {
+            cleanPath = cleanPath.substring(1);
+        }
+
+        // 1. Class 기준 절대 경로 탐색 (앞에 '/' 붙음)
+        InputStream is = Base.class.getResourceAsStream("/" + cleanPath);
+
+        // 2. ClassLoader 기준 상대 경로 탐색 (앞에 '/' 없어야 함)
+        if (is == null && Base.class.getClassLoader() != null) {
+            is = Base.class.getClassLoader().getResourceAsStream(cleanPath);
+        }
+
+        return is;
     }
 
     public static BasicStroke getBasicStroke() {
@@ -54,14 +70,10 @@ public class InternalUtils {
         }
     }
 
-     public static boolean isResourcePath(String path) {
-        if (path == null || path.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = path.trim();
-        return trimmed.startsWith("/") ||
-                trimmed.startsWith("classpath:") ||
-                trimmed.startsWith("jar:") ||
-                trimmed.contains("!/");
+    public static String getProjectFolder() {
+        return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName();
+    }
+    public static String getAssetFolder() {
+        return System.getProperty("user.home") + File.separator + "." + Core.get().getProjectName() + File.separator + "asset";
     }
 }

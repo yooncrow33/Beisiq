@@ -30,7 +30,9 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferStrategy;
 import java.awt.image.VolatileImage;
 import java.io.File;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
-    public static String version = "SI 0.9.2";
+    public static String version = "PRE 0.0.1";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
@@ -94,7 +96,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     Console console = null;
     private Texture logo;
 
-    Font loadingMessageFont = new Font(Font.MONOSPACED,Font.BOLD,86);
+    Font loadingMessageFont = new Font(Font.MONOSPACED,Font.BOLD,48);
 
     public Base(Builder builder) {
         if (!Core.isIsSetConfig()) {
@@ -176,12 +178,11 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         mouseAtBase = new MouseAtBase(this);
         this.init(baseInit);
-        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getJarResourceFolder()+"Beisiq2.PNG",null);
-
+        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
         launch();
 
         sysLoadStack.add(() -> {
-            File assetFolder = new File(InternalUtils.getAssetFolder());
+            File assetFolder = new File(System.getProperty("user.home") + File.separator + "." + Core.get().projectName + File.separator + "asset");
             if (!assetFolder.exists()) {
                 assetFolder.mkdirs();
             }
@@ -205,9 +206,9 @@ public abstract class Base extends Canvas implements IFrameSize {
             initLoadState = InitLoadState.assetInit;
             int maxAssetInitProgress = assetInit.textureAssets.size();
             int assetInitProgress = 0;
-            for (Map.Entry<String, String> entry : assetInit.textureAssets.entrySet()) {
+            for (Map.Entry<String, InputStream> entry : assetInit.textureAssets.entrySet()) {
                 String key = entry.getKey();
-                String value = entry.getValue();
+                InputStream value = entry.getValue(); //유알엘이 필요함
 
                 assetManager.loadTexture(AssetManager.LoadMode.SYNC,key,value,null);
                 assetInitProgress++;
@@ -292,7 +293,7 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         public Io getIo() {return base.io;}
         public OperatorManager getOperatorManager() {return operatorManager;}
-        public AssetManager getAssetManager() {return assetManager;}
+        public AssetInit getAssetInit() {return assetInit;}
         public void initSound() {
             InternalSoundModule.init();
         }
@@ -305,25 +306,18 @@ public abstract class Base extends Canvas implements IFrameSize {
             CUSTOM
         }
 
-        private final Map<String, String> textureAssets = new LinkedHashMap<>();
+        private final Map<String, InputStream> textureAssets = new LinkedHashMap<>();
 
         /**
          * If RootType is custom, It needs full path.
          * If RootType is isOnResource or isOnProjectFolder, It needs only file name.
-         * @param fileNameOrPath
          */
-        public void registerBootAsset(RootType rootType, String key, String fileNameOrPath) {
-            if (key == null || fileNameOrPath == null || rootType == null) {
-                throw new IllegalArgumentException("Key, fileName, and rootType must not be null.");
+        public void registerBootAsset(String key, InputStream is) {
+            if (key == null || is == null) {
+                throw new IllegalArgumentException("Key and InputStream must not be null.");
             }
 
-            String fullPath = switch (rootType) {
-                case CUSTOM -> fileNameOrPath;
-                case IS_ON_RESOURCE -> IoUtils.getCurrentResourceFolder() + fileNameOrPath;
-                case IS_ON_PROJECT_FOLDER -> IoUtils.getAssetFolderInProjectFolder() + fileNameOrPath;
-            };
-
-            textureAssets.put(key, fullPath);
+            textureAssets.put(key, is);
         }
     }
 
@@ -362,10 +356,12 @@ public abstract class Base extends Canvas implements IFrameSize {
 
                         new Thread(() -> {
                             try {
+                                assetManager.clearGarbage();
                                 currentScene.init();
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             } finally {
+                                System.gc();
                                 isChangeScene.set(false);
                             }
                         }).start();
@@ -758,9 +754,9 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     private void renderLoadingScreen(Graphics g) {
         g.drawImage(logo.getVolatileImage(),0,0,1920,1080,null);
-        g.setColor(Color.white);
         g.setFont(loadingMessageFont);
-        RU.drawStringCenter(g,getLoadingMessage(),960,800);
+        g.setColor(Color.white);
+        RU.drawStringCenter(g,getLoadingMessage(),960,850);
     }
     private void addDrawCall(int x, int y, Call call) {
         synchronized (drawCalls) {
