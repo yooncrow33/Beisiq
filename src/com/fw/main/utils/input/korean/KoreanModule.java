@@ -52,7 +52,8 @@ public class KoreanModule {
 
                 for(KoreanObject koreanObject : KoreanManager.activeObjectsMap.values()) {
                     if (!committedStr.isEmpty()) {
-                        koreanObject.getTextBuffer().append(committedStr);
+                        koreanObject.getTextBuffer().insert(koreanObject.getCursorIndex(), committedStr);
+                        koreanObject.setCursorIndex(koreanObject.getCursorIndex() + committedStr.length());
                     }
                     koreanObject.setComposingText(composingStr);
                 }
@@ -73,19 +74,37 @@ public class KoreanModule {
                 }
 
                 for(KoreanObject koreanObject : KoreanManager.activeObjectsMap.values()) {
-                    if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
-                        if (koreanObject.getComposingText().length() > 0) {
-                            koreanObject.setComposingText("");
-                        } else if (koreanObject.getTextBuffer().length() > 0) {
-                            koreanObject.getTextBuffer().deleteCharAt(koreanObject.getTextBuffer().length() - 1);
-                        }
+                    int keyCode = e.getKeyCode();
+
+                    if (keyCode == KeyEvent.VK_V && (e.isControlDown() || e.isMetaDown())) {
+                        koreanObject.pasteClipboardText();
+                        e.consume();
+                        continue;
                     }
 
-                    else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                    if (keyCode == KeyEvent.VK_LEFT) {
+                        koreanObject.moveCursorLeft();
+                        e.consume();
+                    }
+                    else if (keyCode == KeyEvent.VK_RIGHT) {
+                        koreanObject.moveCursorRight();
+                        e.consume();
+                    }
+                    else if (keyCode == KeyEvent.VK_BACK_SPACE) {
+                        if (koreanObject.getComposingText().length() > 0) {
+                            koreanObject.setComposingText("");
+                        } else if (koreanObject.getCursorIndex() > 0) {
+                            // 커서 좌측 글자 삭제
+                            koreanObject.getTextBuffer().deleteCharAt(koreanObject.getCursorIndex() - 1);
+                            koreanObject.setCursorIndex(koreanObject.getCursorIndex() - 1);
+                        }
+                        e.consume();
+                    }
+                    else if (keyCode == KeyEvent.VK_ENTER) {
                         koreanObject.listener.enter();
                         e.consume();
                     }
-                    else if (e.getKeyCode() == KeyEvent.VK_TAB) {
+                    else if (keyCode == KeyEvent.VK_TAB) {
                         koreanObject.listener.tab();
                         e.consume();
 
@@ -105,7 +124,8 @@ public class KoreanModule {
 
                     if (c != KeyEvent.CHAR_UNDEFINED && c >= 32 && c != 127) {
                         if (koreanObject.getComposingText().length() == 0) {
-                            koreanObject.getTextBuffer().append(c);
+                            koreanObject.getTextBuffer().insert(koreanObject.getCursorIndex(), c);
+                            koreanObject.setCursorIndex(koreanObject.getCursorIndex() + 1);
                         }
                     }
                 }

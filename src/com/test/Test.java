@@ -6,6 +6,7 @@ import com.fw.main.api.io.DynamicIoLoadObject;
 import com.fw.main.*;
 import com.fw.main.api.io.IoInterface;
 import com.fw.main.api.sys.ConsoleCMD;
+import com.fw.main.utils.graphics.RU;
 import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
@@ -80,7 +81,7 @@ public class Test extends Base {
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
 
-        for (int i = 0; i<500; i++) {
+        for (int i = 0; i<50; i++) {
             init.getAssetInit().registerBootAsset("index_"+i,
                     InternalUtils.getEngineResourceStream("Beisiq2.png"));
         }
@@ -138,8 +139,7 @@ public class Test extends Base {
         g.drawString("Do Test", 50, 80);
 
         g.setColor(Color.CYAN);
-        g.drawString(ko.getInputText() + "_", 50, 130);
-
+        RU.drawStringWithCursor(g, ko, 50, 130, 5, RU.CursorPosition.BOTTOM);
         g.drawString(String.format(
                 "FPS: %d | frame: %.2f ms | work: %.2f ms | " +
                         "scale: %.6f / requested: %.6f | physical: %.3f (%s%s)",

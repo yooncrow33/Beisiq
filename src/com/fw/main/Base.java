@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
-    public static String version = "PRE 0.0.1";
+    public static String version = "PRE 0.0.2";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;

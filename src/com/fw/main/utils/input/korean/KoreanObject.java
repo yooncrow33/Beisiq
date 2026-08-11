@@ -1,10 +1,14 @@
 package com.fw.main.utils.input.korean;
 
+import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
 import java.util.UUID;
 
 public class KoreanObject {
     final UUID id = UUID.randomUUID();
     KoreanObjectEventListener listener;
+    private int cursorIndex = 0;
 
     private final StringBuilder textBuffer = new StringBuilder();
     private String composingText = "";
@@ -25,6 +29,7 @@ public class KoreanObject {
     public void clear() {
         textBuffer.setLength(0);
         composingText = "";
+        cursorIndex = 0;
     }
 
     public String getInputText() {
@@ -32,10 +37,46 @@ public class KoreanObject {
     }
 
     public void setInputText(String newText) {
-        clear(); // textBuffer 초기화 및 composingText 비우기
+        clear();
         if (newText != null) {
             textBuffer.append(newText);
+            cursorIndex = textBuffer.length();
         }
+    }
+
+    public void moveCursorLeft() {
+        confirmComposing();
+        if (cursorIndex > 0) cursorIndex--;
+    }
+
+    public void moveCursorRight() {
+        confirmComposing();
+        if (cursorIndex < textBuffer.length()) cursorIndex++;
+    }
+
+    public void confirmComposing() {
+        if (!composingText.isEmpty()) {
+            textBuffer.insert(cursorIndex, composingText);
+            cursorIndex += composingText.length();
+            composingText = "";
+        }
+    }
+
+    public int getCursorIndex() { return cursorIndex; }
+    public void setCursorIndex(int index) {
+        this.cursorIndex = Math.max(0, Math.min(index, textBuffer.length()));
+    }
+
+    public void pasteClipboardText() {
+        String clipboardText = getClipboardText();
+        if (clipboardText == null || clipboardText.isEmpty()) {
+            return;
+        }
+
+        confirmComposing();
+
+        textBuffer.insert(cursorIndex, clipboardText);
+        cursorIndex += clipboardText.length();
     }
 
     public KoreanObject() {
@@ -48,4 +89,15 @@ public class KoreanObject {
         KoreanManager.koreanObjectRemove(this);
     }
 
+    static String getClipboardText() {
+        try {
+            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+            if (clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor)) {
+                return (String) clipboard.getData(DataFlavor.stringFlavor);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }

@@ -4,6 +4,8 @@ import com.fw.main.Base;
 import com.fw.main.Core;
 
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
 import java.io.File;
 import java.io.InputStream;
 import java.time.LocalDateTime;

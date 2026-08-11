@@ -4,6 +4,7 @@ import com.fw.internal.utils.Internal;
 import com.fw.main.Base;
 import com.fw.main.Core;
 import com.fw.main.api.io.IoInterface;
+import com.fw.main.utils.graphics.RU;
 import com.fw.main.utils.input.korean.KoreanObject;
 import com.fw.main.utils.input.korean.KoreanObjectEventListener;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
@@ -309,7 +310,7 @@ public class Console {
 
         g2.setFont(FONT_PROMPT);
         g2.setColor(COLOR_BORDER);
-        g2.drawString(fullPrompt, promptX, promptY);
+        RU.drawStringWithCursor(g2,promptPrefix,text,"",promptX,promptY,3,RU.CursorPosition.TOP);
 
         FontMetrics fmPrompt = g2.getFontMetrics(FONT_PROMPT);
         int cursorX = promptX + fmPrompt.stringWidth(fullPrompt);
@@ -383,9 +384,8 @@ public class Console {
         FontMetrics fmWarn = g2.getFontMetrics(FONT_WARNING);
 
         int warnBoxHeight = 22;
-        int warnBoxY = cursorY - 30; // 기준 Y 위치 (첫 번째 박스)
+        int warnBoxY = cursorY - 30;
 
-        // 1. 띄어쓰기 오류일 때
         if (hasConsecutiveSpaces(currentInput)) {
             String msg = "Consecutive spaces detected";
             int warnWidth = fmWarn.stringWidth(msg) + 12;
