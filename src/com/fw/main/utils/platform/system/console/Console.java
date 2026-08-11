@@ -5,8 +5,8 @@ import com.fw.main.Base;
 import com.fw.main.Core;
 import com.fw.main.api.io.IoInterface;
 import com.fw.main.utils.graphics.RU;
-import com.fw.main.utils.input.korean.KoreanObject;
-import com.fw.main.utils.input.korean.KoreanObjectEventListener;
+import com.fw.main.utils.input.korean.TextObject;
+import com.fw.main.utils.input.korean.TextObjectEventListener;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
 
@@ -67,13 +67,13 @@ public class Console {
     }
     private AutoCompleteManager autoCompleteManager = new AutoCompleteManager();
 
-    private final KoreanObject text;
+    private final TextObject text;
 
     Base base;
 
     public Console(Base comp) {
-        this.text = new KoreanObject();
-        text.registerKoreanObjectEventListener(new KoreanObjectEventListener() {
+        this.text = new TextObject();
+        text.registerKoreanObjectEventListener(new TextObjectEventListener() {
             @Override
             public void enter() {
                 enterAtConsole();
@@ -423,6 +423,21 @@ public class Console {
             g2.setColor(COLOR_WARN_TEXT);
             g2.drawString(msg, warnX + 6, warnBoxY + 15);
         }
+
+        g.setColor(Color.CYAN);
+        g.setFont(FONT_WARNING);
+        g.drawString(String.format(
+                "FPS: %d | frame: %.2f ms | work: %.2f ms | " +
+                        "scale: %.6f / requested: %.6f | physical: %.3f (%s%s)",
+                base.getFps(),
+                base.getFrameTimeMs(),
+                base.getRenderWorkTimeMs(),
+                base.getViewScale(),
+                base.getRequestedViewScale(),
+                base.getPhysicalViewScale(),
+                base.isFractionalPhysicalScale() ? "fractional" : "integer",
+                base.isViewScaleSnapped() ? ", snapped" : ""
+        ), 5, 15);
     }
 
     private static final int CONSOLE_KEY_CODE = KeyEvent.VK_BACK_QUOTE;

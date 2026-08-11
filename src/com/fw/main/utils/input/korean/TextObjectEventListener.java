@@ -1,6 +1,6 @@
 package com.fw.main.utils.input.korean;
 
-public interface KoreanObjectEventListener {
+public interface TextObjectEventListener {
     void enter();
     void tab();
 }

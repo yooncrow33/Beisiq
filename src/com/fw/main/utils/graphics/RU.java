@@ -1,6 +1,6 @@
 package com.fw.main.utils.graphics;
 
-import com.fw.main.utils.input.korean.KoreanObject;
+import com.fw.main.utils.input.korean.TextObject;
 
 import java.awt.*;
 
@@ -37,7 +37,7 @@ public class RU {
      * @param cursorSize 삼각형 커서의 크기(높이/반폭)
      * @param position 커서 위치 (TOP: 텍스트 위, BOTTOM: 텍스트 아래)
      */
-    public static void drawStringWithCursor(Graphics2D g, KoreanObject ko, int x, int y, int cursorSize, CursorPosition position) {
+    public static void drawStringWithCursor(Graphics2D g, TextObject ko, int x, int y, int cursorSize, CursorPosition position) {
         String fullText = ko.getInputText();
 
         g.drawString(fullText, x, y);
@@ -77,7 +77,7 @@ public class RU {
      * @param cursorSize 삼각형 커서의 크기
      * @param position 커서 위치 (TOP: 텍스트 위, BOTTOM: 텍스트 아래)
      */
-    public static void drawStringWithCursor(Graphics2D g, String prefix, KoreanObject ko, String suffix, int x, int y, int cursorSize, CursorPosition position) {
+    public static void drawStringWithCursor(Graphics2D g, String prefix, TextObject ko, String suffix, int x, int y, int cursorSize, CursorPosition position) {
         String p = (prefix != null) ? prefix : "";
         String s = (suffix != null) ? suffix : "";
         String koText = ko.getInputText();

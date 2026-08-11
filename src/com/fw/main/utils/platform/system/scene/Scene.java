@@ -21,7 +21,7 @@ public final class Scene {
     ArrayList<Bgm> musicAssetLives = new ArrayList<>();
     Map<Integer, Atlas> atlasMap = new ConcurrentHashMap<>();
     Base base;
-    String name;
+    public final String name;
     final SceneAssetRegister assetRegister;
     SceneInit sceneInit = new SceneInit(this);
 

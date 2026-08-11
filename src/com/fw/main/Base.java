@@ -10,9 +10,8 @@ import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.api.sys.graphics.Call;
 import com.fw.main.utils.graphics.RU;
 import com.fw.main.utils.graphics.RenderingOption;
-import com.fw.main.utils.input.korean.KoreanModule;
+import com.fw.main.utils.input.korean.TextModule;
 import com.fw.main.utils.input.mouse.MouseInterface;
-import com.fw.main.utils.io.IoUtils;
 import com.fw.internal.utils.DynamicAsset;
 import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.asset.Texture;
@@ -32,7 +31,6 @@ import java.awt.image.VolatileImage;
 import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -41,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
-    public static String version = "PRE 0.0.2";
+    public static String version = "PRE 0.0.3";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
@@ -72,6 +70,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     AtomicBoolean initLoadEnd = new AtomicBoolean(false);
     ArrayList<DynamicAsset> sysLoadStack = new ArrayList<>();
     public AtomicBoolean isChangeScene = new AtomicBoolean(false);
+    public Scene getCurrentScene() { return currentScene; }
     Scene currentScene = null;
     Scene pendingScene;
     InitLoadState initLoadState;
@@ -88,7 +87,7 @@ public abstract class Base extends Canvas implements IFrameSize {
     private final ArrayList<Integer> renderTargetXs = new ArrayList<>(1024);
     private final ArrayList<Integer> renderTargetYs = new ArrayList<>(1024);
 
-    private KoreanModule koreanModule;
+    private TextModule textModule;
     private MouseAtBase mouseAtBase;
 
     private ConsoleCMD consoleCMD = null;
@@ -164,11 +163,9 @@ public abstract class Base extends Canvas implements IFrameSize {
         });
 
         if (Core.get().isUseKoreanModule()) {
-            koreanModule = new KoreanModule(this);
+            textModule = new TextModule(this);
         }
 
-        if (builder.initScene != null) {
-            currentScene = builder.initScene; }
         if (builder.integerKey!=null) { Fw.add(builder.integerKey, this); }
         if (builder.stringKey!=null) { Fw.add(builder.stringKey, this); }
         if (builder.consoleUse) {
@@ -178,6 +175,8 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         mouseAtBase = new MouseAtBase(this);
         this.init(baseInit);
+        if (baseInit.initScene != null) {
+            currentScene = baseInit.initScene; }
         logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
         launch();
 
@@ -208,7 +207,7 @@ public abstract class Base extends Canvas implements IFrameSize {
             int assetInitProgress = 0;
             for (Map.Entry<String, InputStream> entry : assetInit.textureAssets.entrySet()) {
                 String key = entry.getKey();
-                InputStream value = entry.getValue(); //유알엘이 필요함
+                InputStream value = entry.getValue();
 
                 assetManager.loadTexture(AssetManager.LoadMode.SYNC,key,value,null);
                 assetInitProgress++;
@@ -260,10 +259,6 @@ public abstract class Base extends Canvas implements IFrameSize {
             this.renderingOption = renderingOption;
             return this;
         }
-
-        public void setInitScene(Scene initScene) {
-            this.initScene = initScene;
-        }
     }
 
     public class Mouse {
@@ -286,6 +281,7 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     public class BaseInit {
         Base base;
+        Scene initScene;
 
         BaseInit(Base base) {
             this.base = base;
@@ -296,6 +292,9 @@ public abstract class Base extends Canvas implements IFrameSize {
         public AssetInit getAssetInit() {return assetInit;}
         public void initSound() {
             InternalSoundModule.init();
+        }
+        public void setInitScene(Scene initScene) {
+            this.initScene = initScene;
         }
     }
 

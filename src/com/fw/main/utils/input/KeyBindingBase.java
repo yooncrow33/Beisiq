@@ -1,6 +1,6 @@
 package com.fw.main.utils.input;
 
-import com.fw.main.utils.input.korean.KoreanManager;
+import com.fw.main.utils.input.korean.TextManager;
 
 import javax.swing.*;
 import java.awt.*;
@@ -122,7 +122,7 @@ public abstract class KeyBindingBase {
         if (keyBindingBaseOption!=null) {
             if (!keyBindingBaseOption.isOn()) {return;}
         }
-        if(KoreanManager.isActiveKoreanObjectIsEmpty()) {
+        if(TextManager.isActiveKoreanObjectIsEmpty()) {
             return;
         }
         switch (k) {
@@ -197,7 +197,7 @@ public abstract class KeyBindingBase {
         if (keyBindingBaseOption!=null) {
             if (!keyBindingBaseOption.isOn()) {return;}
         }
-        if(KoreanManager.isActiveKoreanObjectIsEmpty()) {
+        if(TextManager.isActiveKoreanObjectIsEmpty()) {
             return;
         }
         switch (k) {

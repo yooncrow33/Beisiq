@@ -5,9 +5,9 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.util.UUID;
 
-public class KoreanObject {
+public class TextObject {
     final UUID id = UUID.randomUUID();
-    KoreanObjectEventListener listener;
+    TextObjectEventListener listener;
     private int cursorIndex = 0;
 
     private final StringBuilder textBuffer = new StringBuilder();
@@ -16,9 +16,9 @@ public class KoreanObject {
     public void setFocused(boolean focused) {
         this.focused = focused;
         if (focused) {
-            KoreanManager.activeObjectPut(this);
+            TextManager.activeObjectPut(this);
         } else {
-            KoreanManager.activeObjectRemove(this);
+            TextManager.activeObjectRemove(this);
         }
     }
     public boolean isFocused() { return this.focused; }
@@ -79,14 +79,14 @@ public class KoreanObject {
         cursorIndex += clipboardText.length();
     }
 
-    public KoreanObject() {
-        KoreanManager.koreanObjectPut(this);
+    public TextObject() {
+        TextManager.koreanObjectPut(this);
     }
 
-    public void registerKoreanObjectEventListener(KoreanObjectEventListener koreanObjectEventListener) {this.listener = koreanObjectEventListener;}
+    public void registerKoreanObjectEventListener(TextObjectEventListener textObjectEventListener) {this.listener = textObjectEventListener;}
 
     public void free() {
-        KoreanManager.koreanObjectRemove(this);
+        TextManager.koreanObjectRemove(this);
     }
 
     static String getClipboardText() {

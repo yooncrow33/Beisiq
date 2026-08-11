@@ -8,6 +8,7 @@ import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.SoundAsset;
 import com.fw.main.utils.platform.system.console.Console;
 
+import javax.sound.sampled.LineUnavailableException;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.net.URL;
@@ -48,6 +49,9 @@ public class AssetManager {
 
     public AssetManager(Base baseInstance) {
         this.instance = baseInstance;
+        if (!InternalSoundModule.isInitialized()) {
+            InternalSoundModule.init();
+        }
     }
 
     void addGarbageList(BufferedImage bufferedImage) {
@@ -446,9 +450,9 @@ public class AssetManager {
         InternalSoundModule.shutdown();
     }
 
-    public class SoundAPI {
-        public void setGlobalVolume(double volume) {InternalSoundModule.setGlobalVolume(volume);}
-        public double getGlobalVolume() {return InternalSoundModule.getGlobalVolume();}
-        public boolean isInitialized() {return InternalSoundModule.isInitialized();}
+    public static class SoundAPI {
+        public static void setGlobalVolume(double volume) {InternalSoundModule.setGlobalVolume(volume);}
+        public static double getGlobalVolume() {return InternalSoundModule.getGlobalVolume();}
+        public static boolean isInitialized() {return InternalSoundModule.isInitialized();}
     }
 }

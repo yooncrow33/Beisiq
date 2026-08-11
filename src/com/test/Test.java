@@ -1,32 +1,35 @@
 package com.test;
 
-import com.fw.internal.utils.InternalUtils;
-import com.fw.main.api.io.DynamicIo;
 import com.fw.main.api.io.DynamicIoLoadObject;
 import com.fw.main.*;
 import com.fw.main.api.io.IoInterface;
-import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.utils.graphics.RU;
 import com.fw.main.utils.graphics.RenderingOption;
-import com.fw.main.utils.input.korean.KoreanObject;
-import com.fw.main.utils.input.korean.KoreanObjectEventListener;
+import com.fw.main.utils.input.korean.TextObject;
+import com.fw.main.utils.input.korean.TextObjectEventListener;
+import com.fw.main.utils.input.mouse.FwMouseAPI;
+import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
-import com.fw.main.utils.platform.system.asset.Texture;
+import com.fw.main.utils.platform.system.scene.Bgm;
+import com.fw.main.utils.platform.system.scene.Scene;
+import com.fw.main.utils.platform.system.scene.Sfx;
+import com.fw.main.utils.platform.system.scene.Sprite;
 
 import java.awt.*;
-import java.util.List;
 import java.util.Properties;
 
 public class Test extends Base {
-    KoreanObject ko = new KoreanObject();
+    TextObject ko = new TextObject();
     float updatable;
-    int degree = 1;
-    int degree2 = 1;
-    Texture logo;
+
+    Sfx mouseClickSound;
+    Bgm bgm;
+    Sprite tex1;
+    Sprite tex2;
 
     static {
         Core.setConfig(new
-                Config.Builder("CivitasTest"). // = folder name.
+                Config.Builder("Beisiq Engine Example Code."). // = folder name.
                 setWindowWidth(1280).
                 setWindowHeight(720).
                 setUseKoreanModule(true).
@@ -41,10 +44,10 @@ public class Test extends Base {
                 setIntegerKey(1).
                 setStringKey("1").
                 setUseConsole(true).
-                setRenderingOption(RenderingOption.DEFAULT)
+                setRenderingOption(RenderingOption.LEGACY)
         );
         ko.setFocused(true);
-        ko.registerKoreanObjectEventListener(new KoreanObjectEventListener() {
+        ko.registerKoreanObjectEventListener(new TextObjectEventListener() {
             @Override
             public void enter() {
                 System.out.println(ko.getInputText());
@@ -55,21 +58,48 @@ public class Test extends Base {
 
             }
         });
-
-        logo = assetManager.getTexture("logo");
     }
 
     @Override
     public void setConsole(Base.ConsoleInit c) {
-        c.registerConsoleCMD(new ConsoleCMD() {
+        c.registerConsoleCMD(args -> {
+
+        });
+    }
+
+    @Override
+    public void setMouse(Mouse mouse) {
+        mouse.registerMouseInterface(new MouseInterface() {
             @Override
-            public void CMD(List<String> args) {
-                if (args.get(0).equals("test")) {
-                    degree = Integer.parseInt(args.get(1));
+            public void mouseClicked(FwMouseAPI e) {
+                if ("DEFAULT".equals(getCurrentScene().name)) {
+                    bgm.getMusic().play(true);
                 }
-                if (args.get(0).equals("test2")) {
-                    degree2 = Integer.parseInt(args.get(1));
-                }
+            }
+
+            @Override
+            public void mousePressed(FwMouseAPI e) {
+
+            }
+
+            @Override
+            public void mouseReleased(FwMouseAPI e) {
+
+            }
+
+            @Override
+            public void mouseEntered(FwMouseAPI e) {
+
+            }
+
+            @Override
+            public void mouseExited(FwMouseAPI e) {
+
+            }
+
+            @Override
+            public void mouseWheelMoved(FwMouseAPI e) {
+
             }
         });
     }
@@ -81,24 +111,19 @@ public class Test extends Base {
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
 
-        for (int i = 0; i<50; i++) {
-            init.getAssetInit().registerBootAsset("index_"+i,
-                    InternalUtils.getEngineResourceStream("Beisiq2.png"));
-        }
+        init.setInitScene(new Scene.Builder(sceneInit -> {
+            mouseClickSound = sceneInit.registerSound(IoUtils.getGameResourceStream("rr.wav"));
+            bgm = sceneInit.registerMusic(IoUtils.getGameResourceStream("music.wav"),true);
 
-        init.getOperatorManager().exitOperatorPack.addOperator(new Operator() {
-            @Override
-            public void exe() {
-                System.out.println("exit");
-            }
-        });
+            sceneInit.createAtlas("DEFAULT_ATLAS", 2, (Scene.AtlasBinderCallback) binder -> {
+                tex1 = binder.registerSprite(IoUtils.getGameResourceStream("Beisiq.png"),"tex1");
+                tex2 = binder.registerSprite(IoUtils.getGameResourceStream("Beisiq2.png"),"tex2");
+            });
 
-        init.getOperatorManager().exitOperatorPack.addOperator(new Operator() {
-            @Override
-            public void exe() {
-                System.exit(0);
-            }
-        });
+        }).setName("DEFAULT").build());
+
+
+        init.getOperatorManager().exitOperatorPack.addOperator(() -> System.out.println("exit"));
 
         init.getIo().addIoObject("default", new IoInterface() {
             @Override
@@ -117,11 +142,8 @@ public class Test extends Base {
             }
         });
 
-        new DynamicIoLoadObject("full path....", new DynamicIo() {
-            @Override
-            public void load(Properties p) {
-                //loads...
-            }
+        new DynamicIoLoadObject("full path....", p -> {
+            //loads...
         }).launch();
     }
 
@@ -140,26 +162,6 @@ public class Test extends Base {
 
         g.setColor(Color.CYAN);
         RU.drawStringWithCursor(g, ko, 50, 130, 5, RU.CursorPosition.BOTTOM);
-        g.drawString(String.format(
-                "FPS: %d | frame: %.2f ms | work: %.2f ms | " +
-                        "scale: %.6f / requested: %.6f | physical: %.3f (%s%s)",
-                getFps(),
-                getFrameTimeMs(),
-                getRenderWorkTimeMs(),
-                getViewScale(),
-                getRequestedViewScale(),
-                getPhysicalViewScale(),
-                isFractionalPhysicalScale() ? "fractional" : "integer",
-                isViewScaleSnapped() ? ", snapped" : ""
-        ), 550, 800);
-
-        for (int i = 0; i < degree; i++) {
-            g.drawRect(200 + (i & 1023), 200, 10, 10);
-        }
-        for (int i = 0; i < degree2; i++) {
-            g.drawImage(logo.getVolatileImage(),200 + (i & 1023), 220, 10, 10,null);
-        }
-
     }
 
     public static void main(String[] args) {

@@ -9,9 +9,9 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.text.AttributedCharacterIterator;
 
-public class KoreanModule {
+public class TextModule {
 
-    public KoreanModule(Base jComponent) {
+    public TextModule(Base jComponent) {
         jComponent.setFocusTraversalKeysEnabled(false);
 
         jComponent.setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, java.util.Collections.emptySet());
@@ -23,7 +23,7 @@ public class KoreanModule {
         jComponent.addInputMethodListener(new InputMethodListener() {
             @Override
             public void inputMethodTextChanged(InputMethodEvent event) {
-                if (KoreanManager.isActiveKoreanObjectIsEmpty()) {
+                if (TextManager.isActiveKoreanObjectIsEmpty()) {
                     return;
                 }
 
@@ -50,12 +50,12 @@ public class KoreanModule {
                     composingStr = composing.toString();
                 }
 
-                for(KoreanObject koreanObject : KoreanManager.activeObjectsMap.values()) {
+                for(TextObject textObject : TextManager.activeObjectsMap.values()) {
                     if (!committedStr.isEmpty()) {
-                        koreanObject.getTextBuffer().insert(koreanObject.getCursorIndex(), committedStr);
-                        koreanObject.setCursorIndex(koreanObject.getCursorIndex() + committedStr.length());
+                        textObject.getTextBuffer().insert(textObject.getCursorIndex(), committedStr);
+                        textObject.setCursorIndex(textObject.getCursorIndex() + committedStr.length());
                     }
-                    koreanObject.setComposingText(composingStr);
+                    textObject.setComposingText(composingStr);
                 }
 
                 event.consume();
@@ -69,43 +69,43 @@ public class KoreanModule {
         jComponent.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
-                if (KoreanManager.isActiveKoreanObjectIsEmpty()) {
+                if (TextManager.isActiveKoreanObjectIsEmpty()) {
                     return;
                 }
 
-                for(KoreanObject koreanObject : KoreanManager.activeObjectsMap.values()) {
+                for(TextObject textObject : TextManager.activeObjectsMap.values()) {
                     int keyCode = e.getKeyCode();
 
                     if (keyCode == KeyEvent.VK_V && (e.isControlDown() || e.isMetaDown())) {
-                        koreanObject.pasteClipboardText();
+                        textObject.pasteClipboardText();
                         e.consume();
                         continue;
                     }
 
                     if (keyCode == KeyEvent.VK_LEFT) {
-                        koreanObject.moveCursorLeft();
+                        textObject.moveCursorLeft();
                         e.consume();
                     }
                     else if (keyCode == KeyEvent.VK_RIGHT) {
-                        koreanObject.moveCursorRight();
+                        textObject.moveCursorRight();
                         e.consume();
                     }
                     else if (keyCode == KeyEvent.VK_BACK_SPACE) {
-                        if (koreanObject.getComposingText().length() > 0) {
-                            koreanObject.setComposingText("");
-                        } else if (koreanObject.getCursorIndex() > 0) {
+                        if (textObject.getComposingText().length() > 0) {
+                            textObject.setComposingText("");
+                        } else if (textObject.getCursorIndex() > 0) {
                             // 커서 좌측 글자 삭제
-                            koreanObject.getTextBuffer().deleteCharAt(koreanObject.getCursorIndex() - 1);
-                            koreanObject.setCursorIndex(koreanObject.getCursorIndex() - 1);
+                            textObject.getTextBuffer().deleteCharAt(textObject.getCursorIndex() - 1);
+                            textObject.setCursorIndex(textObject.getCursorIndex() - 1);
                         }
                         e.consume();
                     }
                     else if (keyCode == KeyEvent.VK_ENTER) {
-                        koreanObject.listener.enter();
+                        textObject.listener.enter();
                         e.consume();
                     }
                     else if (keyCode == KeyEvent.VK_TAB) {
-                        koreanObject.listener.tab();
+                        textObject.listener.tab();
                         e.consume();
 
                     }
@@ -114,18 +114,18 @@ public class KoreanModule {
 
             @Override
             public void keyTyped(KeyEvent e) {
-                if (KoreanManager.isActiveKoreanObjectIsEmpty()) {
+                if (TextManager.isActiveKoreanObjectIsEmpty()) {
                     return;
                 }
 
-                for(KoreanObject koreanObject : KoreanManager.activeObjectsMap.values()) {
+                for(TextObject textObject : TextManager.activeObjectsMap.values()) {
 
                     char c = e.getKeyChar();
 
                     if (c != KeyEvent.CHAR_UNDEFINED && c >= 32 && c != 127) {
-                        if (koreanObject.getComposingText().length() == 0) {
-                            koreanObject.getTextBuffer().insert(koreanObject.getCursorIndex(), c);
-                            koreanObject.setCursorIndex(koreanObject.getCursorIndex() + 1);
+                        if (textObject.getComposingText().length() == 0) {
+                            textObject.getTextBuffer().insert(textObject.getCursorIndex(), c);
+                            textObject.setCursorIndex(textObject.getCursorIndex() + 1);
                         }
                     }
                 }
