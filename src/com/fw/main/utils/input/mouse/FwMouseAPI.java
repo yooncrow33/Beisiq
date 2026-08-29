@@ -10,6 +10,10 @@ public class FwMouseAPI {
     public FwMouseAPI() {
     }
 
+    public int getX() { return rawEvent.getX(); }
+
+    public int getY() { return rawEvent.getY(); }
+
     public void setRawEvent(MouseEvent e) {
         this.rawEvent = e;
     }

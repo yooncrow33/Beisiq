@@ -1,5 +1,6 @@
 package com.fw.main.utils.platform.system.scene;
 
+import com.fw.internal.utils.Internal;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.Base;
 import com.fw.main.utils.platform.system.asset.Sound;
@@ -20,7 +21,8 @@ public final class Scene {
     ArrayList<Sfx> soundAssetLives = new ArrayList<>();
     ArrayList<Bgm> musicAssetLives = new ArrayList<>();
     Map<Integer, Atlas> atlasMap = new ConcurrentHashMap<>();
-    Base base;
+    @Internal
+    public Base base;
     public final String name;
     final SceneAssetRegister assetRegister;
     SceneInit sceneInit = new SceneInit(this);

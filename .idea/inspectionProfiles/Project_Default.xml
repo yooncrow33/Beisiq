@@ -19,5 +19,6 @@
       </option>
       <option name="myIgnoreApiDeclaredInThisProject" value="false" />
     </inspection_tool>
+    <inspection_tool class="UsePropertyAccessSyntax" enabled="true" level="WEAK WARNING" enabled_by_default="true" />
   </profile>
 </component>

@@ -10,6 +10,7 @@ import com.fw.main.utils.input.korean.TextObjectEventListener;
 import com.fw.main.utils.input.mouse.FwMouseAPI;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
+import com.fw.main.utils.platform.system.asset.AssetManager;
 import com.fw.main.utils.platform.system.scene.Bgm;
 import com.fw.main.utils.platform.system.scene.Scene;
 import com.fw.main.utils.platform.system.scene.Sfx;
@@ -29,7 +30,7 @@ public class Test extends Base {
 
     static {
         Core.setConfig(new
-                Config.Builder("Beisiq Engine Example Code."). // = folder name.
+                Config.Builder("BeisiqEngine."). // = folder name.
                 setWindowWidth(1280).
                 setWindowHeight(720).
                 setUseKoreanModule(true).
@@ -46,18 +47,6 @@ public class Test extends Base {
                 setUseConsole(true).
                 setRenderingOption(RenderingOption.LEGACY)
         );
-        ko.setFocused(true);
-        ko.registerKoreanObjectEventListener(new TextObjectEventListener() {
-            @Override
-            public void enter() {
-                System.out.println(ko.getInputText());
-                ko.clear();
-            }
-            @Override
-            public void tab() {
-
-            }
-        });
     }
 
     @Override
@@ -108,8 +97,27 @@ public class Test extends Base {
     public void init(BaseInit init) {
         new TestBindingLegacy(this);
 
+        ko.setFocused(true);
+        ko.registerKoreanObjectEventListener(new TextObjectEventListener() {
+            @Override
+            public void enter() {
+                System.out.println(ko.getInputText());
+                ko.clear();
+            }
+            @Override
+            public void tab() {
+
+            }
+        });
+
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
+
+        for (int i = 0; i < 1000; i++) {
+            init.getAssetInit().registerBootAsset("temp_" + i, IoUtils.getEngineResourceStream("Beisiq2.png"));
+        }
+
+        Fw.Debugger.atlasDebugger = true;
 
         init.setInitScene(new Scene.Builder(sceneInit -> {
             mouseClickSound = sceneInit.registerSound(IoUtils.getGameResourceStream("rr.wav"));
@@ -165,6 +173,6 @@ public class Test extends Base {
     }
 
     public static void main(String[] args) {
-        new Test();
+        new Test().launch();
     }
 }

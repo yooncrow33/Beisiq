@@ -34,12 +34,13 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class Base extends Canvas implements IFrameSize {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
-    public static String version = "PRE 0.0.3";
+    public static String version = "PRE 0.0.4 dev";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
@@ -57,23 +58,18 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     private final Mouse mouse = new Mouse(this);
     public final Mouse getMouse() { return mouse; }
-    private final ViewMetrics viewMetrics;
+    private ViewMetrics viewMetrics;
     public final AssetManager assetManager = new AssetManager(this);
     final Io io = new Io();
     final OperatorManager operatorManager = new OperatorManager();
     private final AssetInit assetInit = new AssetInit();
     private final BaseInit baseInit = new BaseInit(this);
-    private float sysInitProgress = 0.0f;
-    private float loadInitProgress = 0.0f;
-    private float assetInitProgress = 0.0f;
-    private float sceneInitProgress = 0.0f;
     AtomicBoolean initLoadEnd = new AtomicBoolean(false);
     ArrayList<DynamicAsset> sysLoadStack = new ArrayList<>();
     public AtomicBoolean isChangeScene = new AtomicBoolean(false);
     public Scene getCurrentScene() { return currentScene; }
     Scene currentScene = null;
     Scene pendingScene;
-    InitLoadState initLoadState;
 
     private BufferStrategy bufferStrategy;
     //for legacy rendering.
@@ -97,89 +93,57 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     Font loadingMessageFont = new Font(Font.MONOSPACED,Font.BOLD,48);
 
+    @FunctionalInterface
+    public interface LoadAction {
+        void execute() throws Exception;
+    }
+
+    public static class LoadTask {
+        private final String description;
+        private final LoadAction action;
+
+        public LoadTask(String description, LoadAction action) {
+            this.description = description;
+            this.action = action;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public LoadAction getAction() {
+            return action;
+        }
+    }
+
+    private final ArrayList<LoadTask> loadTasks = new ArrayList<>();
+    private volatile String currentLoadingMessage = "Initializing...";
+    private volatile float loadingProgress = 0.0f;
+
     public Base(Builder builder) {
         if (!Core.isIsSetConfig()) {
             System.err.println("config is null! you should init config to Core.java in the static block!");
             System.exit(0);
         }
 
-        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        frame.setResizable(true);
-
-        this.setPreferredSize(new Dimension(Core.get().initWindowWidth, Core.get().getInitWindowHeight()));
-        setFocusable(true);
-        setIgnoreRepaint(true);
-
-        viewMetrics = new ViewMetrics(
-                this,
-                Core.get().isUseIntegerPhysicalScaling()
-        );
-
-        frame.add(this);
-        frame.pack();
-        frame.setVisible(true);
-        this.requestFocus();
-
-        setBackground(Color.BLACK);
-        viewMetrics.calculateViewMetrics();
-
-        this.createBufferStrategy(2);
-        this.bufferStrategy = this.getBufferStrategy();
-
-        this.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                viewMetrics.updateVirtualMouse(e.getX(), e.getY());
-            }
-        });
-
-        this.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                viewMetrics.calculateViewMetrics();
-                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
-            }
-
-            @Override
-            public void componentMoved(ComponentEvent e) {
-                viewMetrics.calculateViewMetrics();
-                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
-            }
-        });
-
-        frame.addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentMoved(ComponentEvent e) {
-                viewMetrics.calculateViewMetrics();
-                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
-            }
-        });
-
-        frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override
-            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                exit();
-            }
-        });
-
         if (Core.get().isUseKoreanModule()) {
             textModule = new TextModule(this);
         }
 
-        if (builder.integerKey!=null) { Fw.add(builder.integerKey, this); }
-        if (builder.stringKey!=null) { Fw.add(builder.stringKey, this); }
-        if (builder.consoleUse) {
-            console = new Console(this);
-        }
         this.renderingOption = builder.renderingOption;
 
-        mouseAtBase = new MouseAtBase(this);
-        this.init(baseInit);
-        if (baseInit.initScene != null) {
-            currentScene = baseInit.initScene; }
-        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
-        launch();
-
+        sysLoadStack.add(() -> {
+            mouseAtBase = new MouseAtBase(this);
+            if (baseInit.initScene != null) {
+                currentScene = baseInit.initScene; }
+        });
+        sysLoadStack.add(() -> {
+            if (builder.integerKey!=null) { Fw.add(builder.integerKey, this); }
+            if (builder.stringKey!=null) { Fw.add(builder.stringKey, this); }
+            if (builder.consoleUse) {
+                console = new Console(this);
+            }
+        });
         sysLoadStack.add(() -> {
             File assetFolder = new File(System.getProperty("user.home") + File.separator + "." + Core.get().projectName + File.separator + "asset");
             if (!assetFolder.exists()) {
@@ -191,52 +155,12 @@ public abstract class Base extends Canvas implements IFrameSize {
         sysLoadStack.add(() -> {
             if (console!=null) {io.addIoObject("quickputsystem",console.getQuickPutManager());}
         });
-        new Thread(() -> {
-            initLoadState = InitLoadState.sys;
-            io.load.loadStart = true;
-            int maxSysInitProgress = sysLoadStack.size();
-            int sysInitProgress = 0;
-            for (DynamicAsset dynamicAsset : sysLoadStack) {
-                dynamicAsset.load();
-                sysInitProgress++;
-                this.sysInitProgress = (float) sysInitProgress / maxSysInitProgress * 100;
-            }
-
-            initLoadState = InitLoadState.assetInit;
-            int maxAssetInitProgress = assetInit.textureAssets.size();
-            int assetInitProgress = 0;
-            for (Map.Entry<String, InputStream> entry : assetInit.textureAssets.entrySet()) {
-                String key = entry.getKey();
-                InputStream value = entry.getValue();
-
-                assetManager.loadTexture(AssetManager.LoadMode.SYNC,key,value,null);
-                assetInitProgress++;
-                this.assetInitProgress = (float) assetInitProgress / maxAssetInitProgress * 100;
-            }
-
-            initLoadState = InitLoadState.io;
-            io.load.load();
-            io.load.loadEnd = true;
-
-            initLoadState = InitLoadState.sceneInit;
-            sceneInitProgress = 0.5f;
-            if (currentScene!=null) {
-                try {
-                    currentScene.init();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            sceneInitProgress = 1.0f;
-            initLoadEnd.set(true);
-        }).start();
     }
 
     public static class Builder {
         String stringKey;
         Integer integerKey;
         boolean consoleUse;
-        Scene initScene = null;
 
         RenderingOption renderingOption;
 
@@ -320,7 +244,133 @@ public abstract class Base extends Canvas implements IFrameSize {
         }
     }
 
-    private void launch() {
+    public void windowSetup() {
+        frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        frame.setResizable(true);
+
+        this.setPreferredSize(new Dimension(Core.get().initWindowWidth, Core.get().getInitWindowHeight()));
+        setFocusable(true);
+        setIgnoreRepaint(true);
+
+        viewMetrics = new ViewMetrics(
+                this,
+                Core.get().isUseIntegerPhysicalScaling()
+        );
+
+        frame.add(this);
+        frame.pack();
+        frame.setVisible(true);
+        this.requestFocus();
+
+        setBackground(Color.BLACK);
+        viewMetrics.calculateViewMetrics();
+
+        this.createBufferStrategy(2);
+        this.bufferStrategy = this.getBufferStrategy();
+
+        this.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                viewMetrics.updateVirtualMouse(e.getX(), e.getY());
+            }
+        });
+
+        this.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
+            }
+        });
+
+        frame.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentMoved(ComponentEvent e) {
+                viewMetrics.calculateViewMetrics();
+                renderPausedUntilNanos = System.nanoTime() + RESIZE_SETTLE_NANOS;
+            }
+        });
+
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+                exit();
+            }
+        });
+    }
+
+    private void startAsyncLoading() {
+        loadTasks.clear();
+
+        for (DynamicAsset dynamicAsset : sysLoadStack) {
+            loadTasks.add(new LoadTask("Configuring System...", dynamicAsset::load));
+        }
+
+        for (Map.Entry<String, InputStream> entry : assetInit.textureAssets.entrySet()) {
+            String key = entry.getKey();
+            InputStream is = entry.getValue();
+            loadTasks.add(new LoadTask("Loading texture: " + key, () -> {
+                assetManager.loadTexture(AssetManager.LoadMode.SYNC, key, is, null);
+            }));
+        }
+
+        loadTasks.add(new LoadTask("Loading Game Data...", () -> {
+            io.load.loadStart = true;
+            io.load.load();
+            io.load.loadEnd = true;
+        }));
+
+        if (currentScene != null) {
+            loadTasks.add(new LoadTask("Initializing Scene: " + currentScene.name, () -> {
+                currentScene.base = this;
+                currentScene.init();
+            }));
+        }
+
+        new Thread(() -> {
+            int total = loadTasks.size();
+            if (total == 0) {
+                return;
+            }
+
+            for (int i = 0; i < total; i++) {
+                LoadTask task = loadTasks.get(i);
+                currentLoadingMessage = task.getDescription();
+                loadingProgress = (float) i / total;
+
+                try {
+                    task.getAction().execute();
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                    ErrorBoxManager.addError(
+                            "Load Failed: " + t.getClass().getSimpleName(),
+                            task.getDescription() + " (" + (t.getMessage() != null ? t.getMessage() : "null") + ")"
+                    );
+                }
+            }
+
+            loadingProgress = 1.0f;
+            currentLoadingMessage = "Complete!";
+            initLoadEnd.set(true);
+        }, "Async-Loader").start();
+    }
+
+    public void launch() {
+        windowSetup();
+        init(baseInit);
+        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
+        threadLaunch();
+        ErrorBoxManager.addError("Load", "ErrorBox Test");
+        startAsyncLoading();
+    }
+
+    private void threadLaunch() {
         System.out.println(InternalUtils.Time.getTimeFormate() + " / logic thread start");
 
         running.set(true);
@@ -337,7 +387,6 @@ public abstract class Base extends Canvas implements IFrameSize {
                 try {
                     if (!isChangeScene.get()) {
                         update(deltaTime);
-                        return;
                     }
                     if (isChangeScene.get() && pendingScene != null) {
                         if (currentScene != null) {
@@ -672,6 +721,7 @@ public abstract class Base extends Canvas implements IFrameSize {
             return;
         }
         this.pendingScene = newScene;
+        this.pendingScene.base = this;
         this.isChangeScene.set(true);
     }
 
@@ -692,28 +742,6 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     public final int getMouseX() { return viewMetrics.getVirtualMouseX(); }
     public final int getMouseY() { return viewMetrics.getVirtualMouseY(); }
-
-    private String getLoadingMessage() {
-        if (isChangeScene.get()) {
-            return "Loading scene...";
-        } else {
-            switch (initLoadState) {
-                case sys -> {
-                    return  "Loading sys...";
-                }
-                case assetInit -> {
-                    return "Loading asset...";
-                }
-                case io -> {
-                    return "Loading file...";
-                }
-                case sceneInit -> {
-                    return "Loading Init Scene...";
-                }
-            }
-        }
-        return "something wrong";
-    }
 
     public final void save() {
         io.save.save();
@@ -755,7 +783,9 @@ public abstract class Base extends Canvas implements IFrameSize {
         g.drawImage(logo.getVolatileImage(),0,0,1920,1080,null);
         g.setFont(loadingMessageFont);
         g.setColor(Color.white);
-        RU.drawStringCenter(g,getLoadingMessage(),960,850);
+        String displayMsg = String.format("%s (%.0f%%)", currentLoadingMessage, loadingProgress * 100);
+        RU.drawStringCenter(g, displayMsg, 960, 850);
+        ErrorBoxManager.render(g);
     }
     private void addDrawCall(int x, int y, Call call) {
         synchronized (drawCalls) {
@@ -792,11 +822,68 @@ public abstract class Base extends Canvas implements IFrameSize {
         };
     }
 
-    private enum InitLoadState {
-        sys,
-        assetInit,
-        io,
-        sceneInit
+    public static class ErrorBoxManager {
+        private static final int MAX_BOXES = 5;
+        private static final long DURATION_NANOS = 5_000_000_000L; // 5초 유지
+        private static final CopyOnWriteArrayList<ErrorBox> boxes = new CopyOnWriteArrayList<>();
+
+        public static class ErrorBox {
+            final String title;
+            final String message;
+            final long expireTimeNanos;
+
+            public ErrorBox(String title, String message) {
+                this.title = title;
+                this.message = message;
+                this.expireTimeNanos = System.nanoTime() + DURATION_NANOS;
+            }
+
+            public boolean isExpired(long nowNanos) {
+                return nowNanos >= expireTimeNanos;
+            }
+        }
+
+        public static void addError(String title, String message) {
+            if (boxes.size() >= MAX_BOXES) {
+                boxes.remove(0);
+            }
+            boxes.add(new ErrorBox(title, message));
+        }
+
+        public static void render(Graphics g) {
+
+            if (boxes.isEmpty()) return;
+
+            long now = System.nanoTime();
+            boxes.removeIf(box -> box.isExpired(now));
+
+            int boxWidth = 360;
+            int boxHeight = 60;
+            int margin = 10;
+            int startX = 1920 - boxWidth - 20;
+            int startY = 1080 - boxHeight - 20;
+
+            Font titleFont = new Font(Font.SANS_SERIF, Font.BOLD, 14);
+            Font descFont = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+
+            for (int i = 0; i < boxes.size(); i++) {
+                ErrorBox box = boxes.get(boxes.size() - 1 - i);
+                int y = startY - (i * (boxHeight + margin));
+
+                g.setColor(new Color(40, 0, 0, 220));
+                g.fillRect(startX, y, boxWidth, boxHeight);
+                g.setColor(new Color(255, 60, 60));
+                g.drawRect(startX, y, boxWidth, boxHeight);
+
+                g.setColor(Color.RED);
+                g.setFont(titleFont);
+                g.drawString(box.title, startX + 10, y + 22);
+
+                g.setColor(Color.WHITE);
+                g.setFont(descFont);
+                g.drawString(box.message, startX + 10, y + 45);
+            }
+        }
     }
 }
 //-Dsun.java2d.opengl=true

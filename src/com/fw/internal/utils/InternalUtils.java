@@ -41,10 +41,8 @@ public class InternalUtils {
             cleanPath = cleanPath.substring(1);
         }
 
-        // 1. Class 기준 절대 경로 탐색 (앞에 '/' 붙음)
         InputStream is = Base.class.getResourceAsStream("/" + cleanPath);
 
-        // 2. ClassLoader 기준 상대 경로 탐색 (앞에 '/' 없어야 함)
         if (is == null && Base.class.getClassLoader() != null) {
             is = Base.class.getClassLoader().getResourceAsStream(cleanPath);
         }
