@@ -1,6 +1,7 @@
 package com.fw.main;
 
 import javax.crypto.spec.SecretKeySpec;
+import java.io.InputStream;
 
 public class Config {
     final String projectName;
@@ -10,11 +11,13 @@ public class Config {
     boolean useEncryption;
     boolean useIntegerPhysicalScaling;
     String secretKey = null;
+    InputStream loadingScreenTexture;
     public String getProjectName() { return projectName; }
     public int getInitWindowWidth() { return initWindowWidth; }
     public int getInitWindowHeight() { return initWindowHeight; }
     public boolean isUseKoreanModule() {return useKoreanModule; }
     public boolean isUseEncryption() {return useEncryption; }
+    public InputStream getLoadingScreenTexture() {return loadingScreenTexture; }
     public boolean isUseIntegerPhysicalScaling() { return useIntegerPhysicalScaling; }
     public final SecretKeySpec encryptionKey;
 
@@ -25,6 +28,7 @@ public class Config {
         this.useKoreanModule = builder.useKoreanModule;
         this.useEncryption = builder.useEncryption;
         this.useIntegerPhysicalScaling = builder.useIntegerPhysicalScaling;
+        this.loadingScreenTexture = builder.loadingScreenTexture;
         if (builder.secretKey != null) { this.secretKey = builder.secretKey; }
         if (secretKey.length() != 16) {
             System.err.println("Encryption Key is not 16-digit!");
@@ -41,6 +45,7 @@ public class Config {
         boolean useEncryption;
         boolean useIntegerPhysicalScaling;
         String secretKey = "qwerasdfzxcvtyui";
+        InputStream loadingScreenTexture;
         public Builder(String projectName) {
             this.projectName = projectName;
         }
@@ -74,6 +79,10 @@ public class Config {
          */
         public Builder setEncryptionKey(String secretKey) {
             this.secretKey = secretKey;
+            return this;
+        }
+        public Builder setLoadingScreenTexture(InputStream is) {
+            this.loadingScreenTexture = is;
             return this;
         }
         public Config build() {

@@ -11,6 +11,7 @@ import com.fw.main.utils.input.mouse.FwMouseAPI;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
 import com.fw.main.utils.platform.system.asset.AssetManager;
+import com.fw.main.utils.platform.system.performance.PerformanceRecorder;
 import com.fw.main.utils.platform.system.scene.Bgm;
 import com.fw.main.utils.platform.system.scene.Scene;
 import com.fw.main.utils.platform.system.scene.Sfx;
@@ -30,11 +31,12 @@ public class Test extends Base {
 
     static {
         Core.setConfig(new
-                Config.Builder("BeisiqEngine."). // = folder name.
+                Config.Builder("BeisiqEngine"). // = folder name.
                 setWindowWidth(1280).
                 setWindowHeight(720).
                 setUseKoreanModule(true).
                 setUseIntegerPhysicalScaling(true).
+                setLoadingScreenTexture(IoUtils.getEngineResourceStream("Beisiq1.png")).
                 setEncryptionKey("keyforencryption").
                 setUseEncryption(false).build()
         );
@@ -45,6 +47,8 @@ public class Test extends Base {
                 setIntegerKey(1).
                 setStringKey("1").
                 setUseConsole(true).
+                setCloseWindowWithKillVM(false).
+                setPerformanceRecorderOption(PerformanceRecorder.CaptureMode.EVERY_FRAME,"test").
                 setRenderingOption(RenderingOption.LEGACY)
         );
     }
@@ -113,7 +117,7 @@ public class Test extends Base {
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 50; i++) {
             init.getAssetInit().registerBootAsset("temp_" + i, IoUtils.getEngineResourceStream("Beisiq2.png"));
         }
 

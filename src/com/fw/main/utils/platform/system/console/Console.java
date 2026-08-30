@@ -9,6 +9,7 @@ import com.fw.main.utils.input.korean.TextObject;
 import com.fw.main.utils.input.korean.TextObjectEventListener;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
+import com.fw.main.PerformanceReader;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -22,7 +23,12 @@ public class Console {
         ROOT("root: "),
         CONSOLE("[Console] "),
         SYSTEM("[System] "),
-        ERROR("[Console] Error: ");
+        ERROR("[Console] Error: "),
+        @Internal
+        /**
+         *It's use only internal option.
+         */
+        SAFE_RUNTIME("[Safe_Runtime] ");
 
         private final String prefix;
         LogType(String prefix) { this.prefix = prefix; }
@@ -38,9 +44,10 @@ public class Console {
 
     private static final Color COLOR_BG = new Color(10, 10, 10, 240);
     private static final Color COLOR_BORDER = new Color(240, 240, 240);
-    private static final Color COLOR_LOG_ERROR = new Color(180, 180, 180);
+    private static final Color COLOR_LOG_ERROR = new Color(250, 80, 80);
     private static final Color COLOR_LOG_ROOT = Color.WHITE;
     private static final Color COLOR_LOG_SYS = Color.GREEN;
+    private static final Color COLOR_LOG_SAFE_RUNTIME = Color.YELLOW;
     private static final Color COLOR_LOG_DEFAULT = Color.LIGHT_GRAY;
     private static final Color COLOR_GRAY_TEXT = Color.GRAY;
 
@@ -113,7 +120,7 @@ public class Console {
         getAuto().suggestAt(1,"up").whenToken(0).is("sys");
         getAuto().suggestAt(1,"down").whenToken(0).is("sys");
         getAuto().suggestAt(1,"gc").whenToken(0).is("sys");
-        getAuto().suggestAt(1,"getTexture").whenToken(0).is("sys");
+        getAuto().suggestAt(1,"getInfo").whenToken(0).is("sys");
         getAuto().suggestAt(2,"ver").whenToken(0).is("sys").
                 whenToken(1).is("getTexture");
         getAuto().suggestAt(3,"engine").whenToken(0).is("sys").
@@ -128,6 +135,19 @@ public class Console {
         getAuto().suggestAt(4,"vm").whenToken(0).is("sys").
                 whenToken(1).is("getTexture").whenToken(2).is("ver")
                 .whenToken(3).is("built");
+        getAuto().suggestAt(1,"exe").whenToken(0).is("sys");
+        getAuto().suggestAt(2,"performanceReader").whenToken(0).is("sys").
+                whenToken(1).is("exe");
+        getAuto().suggestAt(2,"testInConsole").whenToken(0).is("sys").
+                whenToken(1).is("exe");
+        getAuto().suggestAt(3,"errorMessage").whenToken(0).is("sys").
+                whenToken(1).is("exe").whenToken(2).is("testInConsole");
+        getAuto().suggestAt(3,"consoleMessage").whenToken(0).is("sys").
+                whenToken(1).is("exe").whenToken(2).is("testInConsole");
+        getAuto().suggestAt(3,"systemMessage").whenToken(0).is("sys").
+                whenToken(1).is("exe").whenToken(2).is("testInConsole");
+        getAuto().suggestAt(3,"safe_runtimeMessage").whenToken(0).is("sys").
+                whenToken(1).is("exe").whenToken(2).is("testInConsole");
     }
 
     public boolean isOpen() { return isOpen; }
@@ -282,6 +302,7 @@ public class Console {
 
             g2.setFont(FONT_LOG);
             if (line.contains("Error")) g2.setColor(COLOR_LOG_ERROR);
+            if (line.contains("[Safe_Runtime]")) g2.setColor(COLOR_LOG_SAFE_RUNTIME);
             else if (line.contains("root:")) g2.setColor(COLOR_LOG_ROOT);
             else if (line.contains("[System]")) g2.setColor(COLOR_LOG_SYS);
             else g2.setColor(COLOR_LOG_DEFAULT);
@@ -543,7 +564,7 @@ public class Console {
                 base.assetManager.clearGarbage();
                 text.clear();
             }
-            case "getTexture" -> {
+            case "getInfo" -> {
                 if (args.size() < 3) {
                     addLog(LogType.ERROR,"fuc is null!");
                     return;
@@ -618,6 +639,49 @@ public class Console {
                         text.clear();
                     }
                 }
+            }
+            case "exe" -> {
+                if (args.size() < 3) {
+                    addLog(LogType.ERROR,"object is null!");
+                    return;
+                }
+                switch (args.get(2)) {
+                    case "performanceReader" -> {
+                        new PerformanceReader().launch();
+                    }
+                    case "consoleHelper" -> {
+                        //new Help();
+                    }
+                    case "testInConsole" -> {
+                        if (args.size() < 4) {
+                            addLog(LogType.ERROR,"object is null!");
+                            return;
+                        }
+                        String message = "test";
+
+                        switch (args.get(3)) {
+                            case "errorMessage" -> {
+                                addLog(LogType.ERROR,message);
+                            }
+                            case "consoleMessage" -> {
+                                addLog(LogType.CONSOLE,message);
+                            }
+                            case "systemMessage" -> {
+                                addLog(LogType.SYSTEM,message);
+                            }
+                            case "safe_runtimeMessage" -> {
+                                addLog(LogType.SAFE_RUNTIME,message);
+                            }
+                            default -> {
+
+                            }
+                        }
+                    }
+                    default -> {
+
+                    }
+                }
+                text.clear();
             }
             default -> {
                 List<Map.Entry<String, String>> entryList = new ArrayList<>(getQuickPutManager().map.entrySet());

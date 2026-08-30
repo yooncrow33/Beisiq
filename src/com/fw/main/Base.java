@@ -1,10 +1,12 @@
 package com.fw.main;
 
+import com.fw.internal.sys.base.view.AccessConsole;
 import com.fw.internal.sys.input.MouseAtBase;
+import com.fw.internal.utils.Internal;
 import com.fw.main.api.io.Io;
 import com.fw.internal.sys.operator.OperatorManager;
-import com.fw.internal.sys.view.IFrameSize;
-import com.fw.internal.sys.view.ViewMetrics;
+import com.fw.internal.sys.base.view.IFrameSize;
+import com.fw.internal.sys.base.view.ViewMetrics;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.api.sys.ConsoleCMD;
 import com.fw.main.api.sys.graphics.Call;
@@ -18,6 +20,7 @@ import com.fw.main.utils.platform.system.asset.Texture;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
 import com.fw.main.utils.platform.system.console.Console;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
+import com.fw.main.utils.platform.system.performance.PerformanceRecorder;
 import com.fw.main.utils.platform.system.scene.Scene;
 
 import javax.swing.*;
@@ -37,17 +40,18 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class Base extends Canvas implements IFrameSize {
+public abstract class Base extends Canvas implements IFrameSize, PerformanceRecorder.BaseWorkTimeProvider, AccessConsole {
     private static final long RESIZE_SETTLE_NANOS = 150_000_000L;
 
-    public static String version = "PRE 0.0.4 dev";
+    PerformanceRecorder.CaptureMode captureMode = PerformanceRecorder.CaptureMode.DO_NOT;
+    public static String version = "PRE 0.1.0 in dev";
     public JFrame frame = new JFrame("Beisiq Engine");
 
     private Thread logicThread;
     private Thread renderThread;
     private AtomicBoolean running = new AtomicBoolean(false);
     private volatile long renderPausedUntilNanos = 0L;
-    private RenderingOption renderingOption;
+    private final RenderingOption renderingOption;
 
     private int fpsCounter = 0;
     private volatile int currentFps = 0;
@@ -55,6 +59,12 @@ public abstract class Base extends Canvas implements IFrameSize {
     private volatile double currentRenderWorkTimeMs = 0;
     private long lastFpsCheckTime = System.nanoTime();
     private long accumulatedRenderWorkNanos = 0L;
+
+    private int cpuFpsCounter = 0;
+    private volatile int currentCpuFps = 0;
+    private volatile double currentCpuWorkTimeMs = 0.0;
+    private long lastCpuFpsCheckTime = System.nanoTime();
+    private long accumulatedCpuWorkNanos = 0L;
 
     private final Mouse mouse = new Mouse(this);
     public final Mouse getMouse() { return mouse; }
@@ -85,6 +95,9 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     private TextModule textModule;
     private MouseAtBase mouseAtBase;
+
+    private PerformanceRecorder recorder;
+    private boolean closeWindowWithKillVM;
 
     private ConsoleCMD consoleCMD = null;
     public ConsoleCMD getConsoleCMD() {return consoleCMD;}
@@ -130,6 +143,7 @@ public abstract class Base extends Canvas implements IFrameSize {
             textModule = new TextModule(this);
         }
 
+        this.closeWindowWithKillVM = builder.closeWindowWithKillVM;;
         this.renderingOption = builder.renderingOption;
 
         sysLoadStack.add(() -> {
@@ -154,6 +168,20 @@ public abstract class Base extends Canvas implements IFrameSize {
         sysLoadStack.add(() -> setMouse(getMouse()));
         sysLoadStack.add(() -> {
             if (console!=null) {io.addIoObject("quickputsystem",console.getQuickPutManager());}
+
+            captureMode = builder.performanceRecorderOption;
+
+            if (captureMode == PerformanceRecorder.CaptureMode.DO_NOT) {
+                return;
+            }
+
+            this.recorder = new PerformanceRecorder(this,this, builder.performanceRecorderOption);
+
+            recorder.setPhase("launch");
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                recorder.exit(builder.dumpPerformanceDataFileName);
+            }));
         });
     }
 
@@ -161,8 +189,10 @@ public abstract class Base extends Canvas implements IFrameSize {
         String stringKey;
         Integer integerKey;
         boolean consoleUse;
-
+        PerformanceRecorder.CaptureMode performanceRecorderOption = PerformanceRecorder.CaptureMode.DO_NOT;
+        String dumpPerformanceDataFileName;
         RenderingOption renderingOption;
+        boolean closeWindowWithKillVM = true;
 
         public Builder setStringKey(String stringKey) {
             this.stringKey = stringKey;
@@ -181,6 +211,17 @@ public abstract class Base extends Canvas implements IFrameSize {
 
         public Builder setRenderingOption(RenderingOption renderingOption) {
             this.renderingOption = renderingOption;
+            return this;
+        }
+
+        public Builder setPerformanceRecorderOption(PerformanceRecorder.CaptureMode performanceRecorderOption, String dumpPerformanceDataFileName) {
+            this.performanceRecorderOption = performanceRecorderOption;
+            this.dumpPerformanceDataFileName = dumpPerformanceDataFileName;
+            return this;
+        }
+
+        public Builder setCloseWindowWithKillVM(boolean closeWindowWithKillVM) {
+            this.closeWindowWithKillVM = closeWindowWithKillVM;
             return this;
         }
     }
@@ -300,7 +341,11 @@ public abstract class Base extends Canvas implements IFrameSize {
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent windowEvent) {
-                exit();
+                if (closeWindowWithKillVM) {
+                    exit(true);
+                } else {
+                    exit();
+                }
             }
         });
     }
@@ -364,7 +409,13 @@ public abstract class Base extends Canvas implements IFrameSize {
     public void launch() {
         windowSetup();
         init(baseInit);
-        logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
+        if (Core.get().loadingScreenTexture != null) {
+            logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",Core.get().loadingScreenTexture,null);
+        } else {
+            ErrorBoxManager.addError("Custom Loading Screen Load Fail", "instead to default screen.");
+            logo = assetManager.loadTexture(AssetManager.LoadMode.SYNC,"logo",InternalUtils.getEngineResourceStream("Beisiq2.png"),null);
+        }
+
         threadLaunch();
         ErrorBoxManager.addError("Load", "ErrorBox Test");
         startAsyncLoading();
@@ -386,7 +437,12 @@ public abstract class Base extends Canvas implements IFrameSize {
 
                 try {
                     if (!isChangeScene.get()) {
+                        long frameStartNanos = System.nanoTime();
                         update(deltaTime);
+                        if (recorder != null) {
+                            recorder.update();
+                        }
+                        recordCpuPresentedFrame(System.nanoTime() - frameStartNanos);
                     }
                     if (isChangeScene.get() && pendingScene != null) {
                         if (currentScene != null) {
@@ -656,6 +712,22 @@ public abstract class Base extends Canvas implements IFrameSize {
         lastFpsCheckTime = currentTime;
     }
 
+    private void recordCpuPresentedFrame(long cpuWorkNanos) {
+        cpuFpsCounter++;
+        accumulatedCpuWorkNanos += cpuWorkNanos;
+
+        long currentTime = System.nanoTime();
+        long elapsedTime = currentTime - lastCpuFpsCheckTime;
+        if (elapsedTime < 1_000_000_000L) return;
+
+        currentCpuFps = (int) Math.round(cpuFpsCounter * 1_000_000_000.0 / elapsedTime);
+        currentCpuWorkTimeMs = (accumulatedCpuWorkNanos / 1_000_000.0) / cpuFpsCounter;
+
+        cpuFpsCounter = 0;
+        accumulatedCpuWorkNanos = 0L;
+        lastCpuFpsCheckTime = currentTime;
+    }
+
     /**
      * Returns the currently measured exact FPS.
      */
@@ -675,6 +747,14 @@ public abstract class Base extends Canvas implements IFrameSize {
      */
     public double getRenderWorkTimeMs() {
         return currentRenderWorkTimeMs;
+    }
+
+    public int getCpuFps() {
+        return currentCpuFps;
+    }
+
+    public double getCpuWorkTimeMs() {
+        return currentCpuWorkTimeMs;
     }
 
     public double getViewScale() {
@@ -727,6 +807,15 @@ public abstract class Base extends Canvas implements IFrameSize {
 
     @Override public final int getComponentWidth() { return this.getWidth(); }
     @Override public final int getComponentHeight() { return this.getHeight(); }
+    @Override
+    public long getCpuWorkTimeNs() {
+        return (long) (currentCpuWorkTimeMs * 1_000_000.0);
+    }
+
+    @Override
+    public long getGpuWorkTimeNs() {
+        return (long) (currentRenderWorkTimeMs * 1_000_000.0);
+    }
     @Override public final double getDeviceScaleX() {
         GraphicsConfiguration configuration = getGraphicsConfiguration();
         return configuration == null
@@ -743,10 +832,23 @@ public abstract class Base extends Canvas implements IFrameSize {
     public final int getMouseX() { return viewMetrics.getVirtualMouseX(); }
     public final int getMouseY() { return viewMetrics.getVirtualMouseY(); }
 
+    @Override
+    @Internal
+    @Deprecated
+    public Console getConsole() {return console;}
+
     public final void save() {
         io.save.save();
     }
 
+    public void exit(boolean b) {
+        if (b) {
+            exit();
+            System.exit(0);
+        } else {
+            exit();
+        }
+    }
     public void exit() {
         save();
         operatorManager.exitOperatorPack.launch();
@@ -785,6 +887,7 @@ public abstract class Base extends Canvas implements IFrameSize {
         g.setColor(Color.white);
         String displayMsg = String.format("%s (%.0f%%)", currentLoadingMessage, loadingProgress * 100);
         RU.drawStringCenter(g, displayMsg, 960, 850);
+        g.setColor(Color.black);
         ErrorBoxManager.render(g);
     }
     private void addDrawCall(int x, int y, Call call) {

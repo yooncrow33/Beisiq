@@ -59,8 +59,9 @@ public class Fw {
 
     @Internal
     /**
-     * Danger.
+     * Danger and legacy.
      */
+    @Deprecated
     public static class Helper {
         public static Console getConsoleToBaseInstance(Base base) {
             return base.console;

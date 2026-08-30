@@ -1,4 +1,4 @@
-package com.fw.internal.sys.view;
+package com.fw.internal.sys.base.view;
 
 public class ViewMetrics implements IViewMetrics, IMouse {
     private static final int VIRTUAL_WIDTH = 1920;

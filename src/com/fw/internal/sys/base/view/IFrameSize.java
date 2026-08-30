@@ -1,4 +1,4 @@
-package com.fw.internal.sys.view;
+package com.fw.internal.sys.base.view;
 
 public interface IFrameSize {
     int getComponentWidth();

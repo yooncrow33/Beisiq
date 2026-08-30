@@ -38,6 +38,7 @@ public class Texture implements AutoCloseable {
         this.assetKey = assetKey;
         this.assetStream = assetStream;
         this.inUse = true;
+
         this.closed = false;
     }
 
