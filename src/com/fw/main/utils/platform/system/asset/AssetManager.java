@@ -1,5 +1,6 @@
 package com.fw.main.utils.platform.system.asset;
 
+import com.fw.internal.utils.Internal;
 import com.fw.internal.utils.InternalUtils;
 import com.fw.main.Base;
 import com.fw.main.Fw;
@@ -35,9 +36,9 @@ public class AssetManager {
     }
 
     private final Base instance;
-    private final Queue<Texture> freePool = new ConcurrentLinkedQueue<>();
-    private Texture[] pool;
-    private final Map<String, Texture> textureActiveMap = new ConcurrentHashMap<>();
+    private final Queue<PooledTexture> freePool = new ConcurrentLinkedQueue<>();
+    private PooledTexture[] pool;
+    private final Map<String, PooledTexture> textureActiveMap = new ConcurrentHashMap<>();
     private final Map<String, SoundAsset> soundActiveMap = new ConcurrentHashMap<>();
     private final Map<String, MusicAsset> musicActiveMap = new ConcurrentHashMap<>();
     private final Map<String, List<DynamicAssetObject>> pendingEvents = new ConcurrentHashMap<>();
@@ -74,13 +75,14 @@ public class AssetManager {
     }
 
     public synchronized void mallocTexturePool(int capacity) {
-        pool = new Texture[capacity];
+        pool = new PooledTexture[capacity];
         freePool.clear();
         for (int i = 0; i < capacity; i++) {
-            pool[i] = new Texture(this);
+            pool[i] = new PooledTexture(this);
             freePool.add(pool[i]);
         }
     }
+
     public synchronized void mallocLazyLoadPool(int capacity) {
         daoPool = new DynamicAssetObject[capacity];
         daoFreePool.clear();
@@ -90,14 +92,15 @@ public class AssetManager {
         }
     }
 
-    private Texture getFreeTexture() {
-        Texture tex = freePool.poll();
+    private PooledTexture getFreeTexture() {
+        PooledTexture tex = freePool.poll();
         if (tex == null) {
             throw new IllegalStateException("Out of texture pool! Increase pool size with mallocTexturePool().");
         }
         tex.setInUse(true);
         return tex;
     }
+
     private DynamicAssetObject getFreeDao() {
         DynamicAssetObject dao = daoFreePool.poll();
         if (dao == null) {
@@ -123,7 +126,7 @@ public class AssetManager {
             return textureActiveMap.get(assetKey);
         }
 
-        Texture texture = getFreeTexture();
+        PooledTexture texture = getFreeTexture();
         texture.init(assetKey, is);
 
         if (mode == LoadMode.SYNC) {
@@ -291,10 +294,12 @@ public class AssetManager {
                         dao.reset();
                         daoFreePool.offer(dao);
 
-                        for (Texture t : pool) {
-                            if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
-                                textureActiveMap.put(assetKey, t);
-                                return t;
+                        if (pool != null) {
+                            for (PooledTexture t : pool) {
+                                if (t != null && t.isInUse() && assetKey.equals(t.getAssetKey())) {
+                                    textureActiveMap.put(assetKey, t);
+                                    return t;
+                                }
                             }
                         }
                     }
@@ -355,7 +360,7 @@ public class AssetManager {
     public synchronized void free(AssetType assetType, String assetKey) {
         switch (assetType) {
             case TEXTURE -> {
-                Texture tex = textureActiveMap.remove(assetKey);
+                PooledTexture tex = textureActiveMap.remove(assetKey);
                 if (tex != null) {
                     tex.close();
                     freePool.offer(tex);
@@ -367,11 +372,13 @@ public class AssetManager {
                         dao.reset();
                         daoFreePool.offer(dao);
 
-                        for (Texture t : pool) {
-                            if (t.isInUse() && assetKey.equals(t.getAssetKey())) {
-                                t.close();
-                                freePool.offer(t);
-                                break;
+                        if (pool != null) {
+                            for (PooledTexture t : pool) {
+                                if (t != null && t.isInUse() && assetKey.equals(t.getAssetKey())) {
+                                    t.close();
+                                    freePool.offer(t);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -402,12 +409,10 @@ public class AssetManager {
                         pendingEvents.values().forEach(list -> list.remove(dao));
                         dao.reset();
                         daoFreePool.offer(dao);
-
                     }
                 }
             }
         }
-
     }
 
     public synchronized void disposeAll() {
@@ -432,7 +437,7 @@ public class AssetManager {
         musicActiveMap.clear();
 
         if (pool != null) {
-            for (Texture tex : pool) {
+            for (PooledTexture tex : pool) {
                 if (tex != null) tex.close();
             }
         }

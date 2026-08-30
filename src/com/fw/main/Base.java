@@ -15,13 +15,16 @@ import com.fw.main.utils.graphics.RenderingOption;
 import com.fw.main.utils.input.korean.TextModule;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.internal.utils.DynamicAsset;
-import com.fw.main.utils.platform.system.asset.AssetManager;
-import com.fw.main.utils.platform.system.asset.Texture;
+import com.fw.main.utils.platform.system.asset.*;
 import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.InternalSoundModule;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.MusicAsset;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.SoundAsset;
 import com.fw.main.utils.platform.system.console.Console;
 import com.fw.main.utils.platform.system.console.autoComplete.AutoCompleteManager;
 import com.fw.main.utils.platform.system.performance.PerformanceRecorder;
 import com.fw.main.utils.platform.system.scene.Scene;
+
+import java.lang.reflect.Proxy;
 
 import javax.swing.*;
 import java.awt.*;
@@ -72,7 +75,7 @@ public abstract class Base extends Canvas implements IFrameSize, PerformanceReco
     public final AssetManager assetManager = new AssetManager(this);
     final Io io = new Io();
     final OperatorManager operatorManager = new OperatorManager();
-    private final AssetInit assetInit = new AssetInit();
+    private final AssetInit assetInit = new AssetInit(this);
     private final BaseInit baseInit = new BaseInit(this);
     AtomicBoolean initLoadEnd = new AtomicBoolean(false);
     ArrayList<DynamicAsset> sysLoadStack = new ArrayList<>();
@@ -263,28 +266,6 @@ public abstract class Base extends Canvas implements IFrameSize, PerformanceReco
         }
     }
 
-    public class AssetInit {
-        public enum RootType {
-            IS_ON_RESOURCE,
-            IS_ON_PROJECT_FOLDER,
-            CUSTOM
-        }
-
-        private final Map<String, InputStream> textureAssets = new LinkedHashMap<>();
-
-        /**
-         * If RootType is custom, It needs full path.
-         * If RootType is isOnResource or isOnProjectFolder, It needs only file name.
-         */
-        public void registerBootAsset(String key, InputStream is) {
-            if (key == null || is == null) {
-                throw new IllegalArgumentException("Key and InputStream must not be null.");
-            }
-
-            textureAssets.put(key, is);
-        }
-    }
-
     public void windowSetup() {
         frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         frame.setResizable(true);
@@ -361,7 +342,35 @@ public abstract class Base extends Canvas implements IFrameSize, PerformanceReco
             String key = entry.getKey();
             InputStream is = entry.getValue();
             loadTasks.add(new LoadTask("Loading texture: " + key, () -> {
-                assetManager.loadTexture(AssetManager.LoadMode.SYNC, key, is, null);
+                Texture real = assetManager.loadTexture(AssetManager.LoadMode.SYNC, key, is, null);
+                BootTextureProxy proxy = assetInit.textureProxies.get(key);
+                if (proxy != null) {
+                    proxy.setTarget(real);
+                }
+            }));
+        }
+
+        for (Map.Entry<String, InputStream> entry : assetInit.soundAssets.entrySet()) {
+            String key = entry.getKey();
+            InputStream is = entry.getValue();
+            loadTasks.add(new LoadTask("Loading sound: " + key, () -> {
+                SoundAsset real = assetManager.loadSound(AssetManager.LoadMode.SYNC, key, is, null);
+                AssetInit.BootSoundProxy proxy = assetInit.soundProxies.get(key);
+                if (proxy != null) {
+                    proxy.setTarget(real);
+                }
+            }));
+        }
+
+        for (Map.Entry<String, InputStream> entry : assetInit.musicAssets.entrySet()) {
+            String key = entry.getKey();
+            InputStream is = entry.getValue();
+            loadTasks.add(new LoadTask("Loading music: " + key, () -> {
+                MusicAsset real = assetManager.loadMusic(AssetManager.LoadMode.SYNC, AssetManager.MusicType.STREAM_MUSIC, key, is, null);
+                AssetInit.BootMusicProxy proxy = assetInit.musicProxies.get(key);
+                if (proxy != null) {
+                    proxy.setTarget(real);
+                }
             }));
         }
 

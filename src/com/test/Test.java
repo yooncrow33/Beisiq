@@ -11,6 +11,8 @@ import com.fw.main.utils.input.mouse.FwMouseAPI;
 import com.fw.main.utils.input.mouse.MouseInterface;
 import com.fw.main.utils.io.IoUtils;
 import com.fw.main.utils.platform.system.asset.AssetManager;
+import com.fw.main.utils.platform.system.asset.Sound;
+import com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal.SoundAsset;
 import com.fw.main.utils.platform.system.performance.PerformanceRecorder;
 import com.fw.main.utils.platform.system.scene.Bgm;
 import com.fw.main.utils.platform.system.scene.Scene;
@@ -28,6 +30,7 @@ public class Test extends Base {
     Bgm bgm;
     Sprite tex1;
     Sprite tex2;
+    SoundAsset test;
 
     static {
         Core.setConfig(new
@@ -65,9 +68,8 @@ public class Test extends Base {
         mouse.registerMouseInterface(new MouseInterface() {
             @Override
             public void mouseClicked(FwMouseAPI e) {
-                if ("DEFAULT".equals(getCurrentScene().name)) {
-                    bgm.getMusic().play(true);
-                }
+                test.play();
+                System.out.println("ds");
             }
 
             @Override
@@ -117,9 +119,11 @@ public class Test extends Base {
         assetManager.mallocTexturePool(3000);
         assetManager.mallocLazyLoadPool(500);
 
-        for (int i = 0; i < 50; i++) {
-            init.getAssetInit().registerBootAsset("temp_" + i, IoUtils.getEngineResourceStream("Beisiq2.png"));
+        for (int i = 0; i < 10; i++) {
+            test = init.getAssetInit().registerBootSound("temp_" + i, IoUtils.getEngineResourceStream("326363__wazdabaz__ebs-test.wav"));
         }
+
+        init.getAssetInit();
 
         Fw.Debugger.atlasDebugger = true;
 

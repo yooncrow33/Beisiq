@@ -122,18 +122,18 @@ public class Console {
         getAuto().suggestAt(1,"gc").whenToken(0).is("sys");
         getAuto().suggestAt(1,"getInfo").whenToken(0).is("sys");
         getAuto().suggestAt(2,"ver").whenToken(0).is("sys").
-                whenToken(1).is("getTexture");
+                whenToken(1).is("getInfo");
         getAuto().suggestAt(3,"engine").whenToken(0).is("sys").
-                whenToken(1).is("getTexture").whenToken(2).is("ver");
+                whenToken(1).is("getInfo").whenToken(2).is("ver");
         getAuto().suggestAt(3,"sound").whenToken(0).is("sys").
-                whenToken(1).is("getTexture").whenToken(2).is("ver");
+                whenToken(1).is("getInfo").whenToken(2).is("ver");
         getAuto().suggestAt(3,"built").whenToken(0).is("sys").
-                whenToken(1).is("getTexture").whenToken(2).is("ver");
+                whenToken(1).is("getInfo").whenToken(2).is("ver");
         getAuto().suggestAt(4,"jdk").whenToken(0).is("sys").
-                whenToken(1).is("getTexture").whenToken(2).is("ver")
+                whenToken(1).is("getInfo").whenToken(2).is("ver")
                 .whenToken(3).is("built");
         getAuto().suggestAt(4,"vm").whenToken(0).is("sys").
-                whenToken(1).is("getTexture").whenToken(2).is("ver")
+                whenToken(1).is("getInfo").whenToken(2).is("ver")
                 .whenToken(3).is("built");
         getAuto().suggestAt(1,"exe").whenToken(0).is("sys");
         getAuto().suggestAt(2,"performanceReader").whenToken(0).is("sys").
