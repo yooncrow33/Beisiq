@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +26,6 @@
  */
 package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal;
 
-import com.fw.internal.utils.Internal;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,10 +33,10 @@ import java.util.List;
  * The Mixer class is what does the audio data mixing for the TinySound system.
  * Mixer is an internal class of the TinySound system and should be of no real
  * concern to the average user of TinySound.
- *
+ * 
  * @author Finn Kuusisto
  */
-class Mixer {
+public class Mixer {
 	
 	private List<MusicReference> musics;
 	private List<SoundReference> sounds;
@@ -104,11 +101,11 @@ class Mixer {
 	 */
 	public synchronized void unRegisterSoundReference(int soundID) {
 		//removal working backward is easier
-		for (int i = this.sounds.size() - 1; i >= 0; i--) {
-			if (this.sounds.get(i).getSoundID() == soundID) {
-				this.sounds.remove(i).dispose();
-			}
-		}
+        for (int i = this.sounds.size() - 1; i >= 0; i--) {
+            if (this.sounds.get(i).getSoundID() == soundID) {
+                this.sounds.remove(i).dispose();
+            }
+        }
 	}
 	
 	/**

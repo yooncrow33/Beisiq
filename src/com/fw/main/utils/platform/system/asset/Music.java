@@ -28,7 +28,7 @@ package com.fw.main.utils.platform.system.asset;
 
 /**
  * The Music interface is an abstraction for music.  Music objects should only
- * be loaded via the TinySound <code>loadMusic()</code> functions.  Music can be
+ * be loaded via the InternalSoundModule <code>loadMusic()</code> functions.  Music can be
  * played, paused, resumed, stopped and looped from specified positions.
  * 
  * @author Finn Kuusisto

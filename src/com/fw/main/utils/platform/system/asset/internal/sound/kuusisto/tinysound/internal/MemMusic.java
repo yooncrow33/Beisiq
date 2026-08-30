@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,64 +27,34 @@
 package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal;
 
 import com.fw.main.utils.platform.system.asset.AssetManager;
-import com.fw.main.utils.platform.system.asset.Music;
-import sun.misc.Unsafe;
 
-import java.lang.reflect.Field;
+public class MemMusic extends MusicAsset {
 
+    private final AssetManager.AssetType type2 = AssetManager.AssetType.MUSIC;
 
-/**
- * The MemMusic class is an implementation of the Music interface that stores
- * all audio data in memory for low latency.
- */
-
-class MemMusic extends MusicAsset {
-
-    static final Unsafe unsafe;
-    static {
-        try {
-            Field f = Unsafe.class.getDeclaredField("theUnsafe");
-            f.setAccessible(true);
-            unsafe = (Unsafe) f.get(null);
-        } catch (Exception e) {
-            throw new RuntimeException("Unsafe init fail", e);
-        }
+    public AssetManager.AssetType getAssetType() {
+        return type2;
     }
 
-    AssetManager.AssetType type2 = AssetManager.AssetType.SOUND;
-    public AssetManager.AssetType getAssetType() {return type2;}
-
-    long leftAddress;
-    long rightAddress;
-    int capacity;
+    private byte[] left;
+    private byte[] right;
     private Mixer mixer;
     private MusicReference reference;
 
-
-    public MemMusic(long leftAddress, long rightAddress, int capacity, Mixer mixer) {
-        this.leftAddress = leftAddress;
-        this.rightAddress = rightAddress;
-        this.capacity = capacity;
+    public MemMusic(byte[] left, byte[] right, Mixer mixer) {
+        this.left = left;
+        this.right = right;
         this.mixer = mixer;
-        this.reference = new MemMusicReference(this, false, false, 0, 0, 1.0, 0.0);
+        this.reference = new MemMusicReference(this.left, this.right, false, false, 0, 0, 1.0, 0.0);
         this.mixer.registerMusicReference(this.reference);
     }
 
-    /**
-     * Play this MemMusic and loop if specified.
-     * @param loop if this MemMusic should loop
-     */
     @Override
     public void play(boolean loop) {
         this.reference.setLoop(loop);
         this.reference.setPlaying(true);
     }
 
-    /**
-     * Play this MemMusic at the specified volume and loop if specified.
-     * @param loop if this MemMusic should loop
-     * @param volume the volume to play the this Music
-     */
     @Override
     public void play(boolean loop, double volume) {
         this.setLoop(loop);
@@ -93,14 +62,6 @@ class MemMusic extends MusicAsset {
         this.reference.setPlaying(true);
     }
 
-    /**
-     * Play this MemMusic at the specified volume and pan, and loop if specified
-     * .
-     * @param loop if this MemMusic should loop
-     * @param volume the volume to play the this MemMusic
-     * @param pan the pan at which to play this MemMusic [-1.0,1.0], values
-     * outside the valid range will be ignored
-     */
     @Override
     public void play(boolean loop, double volume, double pan) {
         this.setLoop(loop);
@@ -109,147 +70,86 @@ class MemMusic extends MusicAsset {
         this.reference.setPlaying(true);
     }
 
-    /**
-     * Stop playing this MemMusic and set its position to the beginning.
-     */
     @Override
     public void stop() {
         this.reference.setPlaying(false);
         this.rewind();
     }
 
-    /**
-     * Stop playing this MemMusic and keep its current position.
-     */
     @Override
     public void pause() {
         this.reference.setPlaying(false);
     }
 
-    /**
-     * Play this MemMusic from its current position.
-     */
     @Override
     public void resume() {
         this.reference.setPlaying(true);
     }
 
-    /**
-     * Set this MemMusic's position to the beginning.
-     */
     @Override
     public void rewind() {
         this.reference.setPosition(0);
     }
 
-    /**
-     * Set this MemMusic's position to the loop position.
-     */
     @Override
     public void rewindToLoopPosition() {
         long byteIndex = this.reference.getLoopPosition();
         this.reference.setPosition(byteIndex);
     }
 
-    /**
-     * Determine if this MemMusic is playing.
-     * @return true if this MemMusic is playing
-     */
     @Override
     public boolean playing() {
         return this.reference.getPlaying();
     }
 
-    /**
-     * Determine if this MemMusic has reached its end and is done playing.
-     * @return true if this MemMusic has reached the end and is done playing
-     */
     @Override
     public boolean done() {
         return this.reference.done();
     }
 
-    /**
-     * Determine if this MemMusic will loop.
-     * @return true if this MemMusic will loop
-     */
     @Override
     public boolean loop() {
         return this.reference.getLoop();
     }
 
-    /**
-     * Set whether this MemMusic will loop.
-     * @param loop whether this MemMusic will loop
-     */
     @Override
     public void setLoop(boolean loop) {
         this.reference.setLoop(loop);
     }
 
-    /**
-     * Get the loop position of this MemMusic by sample frame.
-     * @return loop position by sample frame
-     */
     @Override
     public int getLoopPositionByFrame() {
-        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
-                InternalSoundModule.FORMAT.getChannels();
+        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() / InternalSoundModule.FORMAT.getChannels();
         long byteIndex = this.reference.getLoopPosition();
         return (int)(byteIndex / bytesPerChannelForFrame);
     }
 
-    /**
-     * Get the loop position of this MemMusic by seconds.
-     * @return loop position by seconds
-     */
     @Override
     public double getLoopPositionBySeconds() {
-        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
-                InternalSoundModule.FORMAT.getChannels();
+        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() / InternalSoundModule.FORMAT.getChannels();
         long byteIndex = this.reference.getLoopPosition();
-        return (byteIndex / (InternalSoundModule.FORMAT.getFrameRate() *
-                bytesPerChannelForFrame));
+        return (byteIndex / (InternalSoundModule.FORMAT.getFrameRate() * bytesPerChannelForFrame));
     }
 
-    /**
-     * Set the loop position of this MemMusic by sample frame.
-     * @param frameIndex sample frame loop position to set
-     */
     @Override
     public void setLoopPositionByFrame(int frameIndex) {
-        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
-                InternalSoundModule.FORMAT.getChannels();
+        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() / InternalSoundModule.FORMAT.getChannels();
         long byteIndex = (long)(frameIndex * bytesPerChannelForFrame);
         this.reference.setLoopPosition(byteIndex);
     }
 
-    /**
-     * Set the loop position of this MemMusic by seconds.
-     * @param seconds loop position to set by seconds
-     */
     @Override
     public void setLoopPositionBySeconds(double seconds) {
-        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
-                InternalSoundModule.FORMAT.getChannels();
-        long byteIndex = (long)(seconds * InternalSoundModule.FORMAT.getFrameRate()) *
-                bytesPerChannelForFrame;
+        int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() / InternalSoundModule.FORMAT.getChannels();
+        long byteIndex = (long)(seconds * InternalSoundModule.FORMAT.getFrameRate()) * bytesPerChannelForFrame;
         this.reference.setLoopPosition(byteIndex);
     }
 
-    /**
-     * Get the volume of this MemMusic.
-     * @return volume of this MemMusic
-     */
     @Override
     public double getVolume() {
         return this.reference.getVolume();
     }
 
-    /**
-     * Set the volume of this MemMusic.
-     * @param volume the desired volume of this MemMusic
-     */
     @Override
     public void setVolume(double volume) {
         if (volume >= 0.0) {
@@ -257,20 +157,11 @@ class MemMusic extends MusicAsset {
         }
     }
 
-    /**
-     * Get the pan of this MemMusic.
-     * @return pan of this MemMusic
-     */
     @Override
     public double getPan() {
         return this.reference.getPan();
     }
 
-    /**
-     * Set the pan of this MemMusic.  Must be between -1.0 (full pan left) and
-     * 1.0 (full pan right).  Values outside the valid range will be ignored.
-     * @param pan the desired pan of this MemMusic
-     */
     @Override
     public void setPan(double pan) {
         if (pan >= -1.0 && pan <= 1.0) {
@@ -278,40 +169,24 @@ class MemMusic extends MusicAsset {
         }
     }
 
-    /**
-     * Unload this MemMusic from the system.  Attempts to use this MemMusic
-     * after unloading will result in error.
-     */
     @Override
     public void free() {
         if (this.mixer != null) {
             this.mixer.unRegisterMusicReference(this.reference);
+            this.mixer = null;
         }
-
-        synchronized (this) {
+        if (this.reference != null) {
             this.reference.dispose();
-
-            if (this.leftAddress != 0) {
-                unsafe.freeMemory(this.leftAddress);
-                this.leftAddress = 0;
-            }
-            if (this.rightAddress != 0) {
-                unsafe.freeMemory(this.rightAddress);
-                this.rightAddress = 0;
-            }
-            this.capacity = 0;
+            this.reference = null;
         }
-
-        this.mixer = null;
+        this.left = null;
+        this.right = null;
     }
-
-    /////////////
-    //Reference//
-    /////////////
 
     private static class MemMusicReference implements MusicReference {
 
-        private final MemMusic parent; // 부모 참조 유지
+        private byte[] left;
+        private byte[] right;
         private boolean playing;
         private boolean loop;
         private int loopPosition;
@@ -319,9 +194,11 @@ class MemMusic extends MusicAsset {
         private double volume;
         private double pan;
 
-        public MemMusicReference(MemMusic parent, boolean playing,
-                                 boolean loop, int loopPosition, int position, double volume, double pan) {
-            this.parent = parent;
+        public MemMusicReference(byte[] left, byte[] right, boolean playing,
+                                 boolean loop, int loopPosition, int position, double volume,
+                                 double pan) {
+            this.left = left;
+            this.right = right;
             this.playing = playing;
             this.loop = loop;
             this.loopPosition = loopPosition;
@@ -372,14 +249,14 @@ class MemMusic extends MusicAsset {
 
         @Override
         public synchronized void setPosition(long position) {
-            if (position >= 0 && position < parent.capacity) {
+            if (this.left != null && position >= 0 && position < this.left.length) {
                 this.position = (int)position;
             }
         }
 
         @Override
         public synchronized void setLoopPosition(long loopPosition) {
-            if (loopPosition >= 0 && loopPosition < parent.capacity) {
+            if (this.left != null && loopPosition >= 0 && loopPosition < this.left.length) {
                 this.loopPosition = (int)loopPosition;
             }
         }
@@ -394,60 +271,25 @@ class MemMusic extends MusicAsset {
             this.pan = pan;
         }
 
-
-
-        @Override
-        public synchronized void skipBytes(long num) {
-            for (int i = 0; i < num; i++) {
-                this.position++;
-                if (this.position >= parent.capacity) {
-                    if (this.loop) {
-                        this.position = this.loopPosition;
-                    }
-                    else {
-                        this.playing = false;
-                    }
-                }
-            }
-        }
-
         @Override
         public synchronized long bytesAvailable() {
-            synchronized (this.parent) {
-                return this.parent.capacity - this.position;
-            }
+            if (this.left == null) return 0;
+            return this.left.length - this.position;
         }
 
         @Override
         public synchronized boolean done() {
-            synchronized (this.parent) {
-                return (this.parent.capacity - this.position) <= 0 && !this.playing;
-            }
+            if (this.left == null) return true;
+            long available = this.left.length - this.position;
+            return available <= 0 && !this.playing;
         }
 
         @Override
-        public void nextTwoBytes(int[] data, boolean bigEndian) {
-            synchronized (this.parent) {
-                if (this.parent.leftAddress == 0 || this.position >= this.parent.capacity) {
-                    data[0] = 0; data[1] = 0;
-                    return;
-                }
-
-                byte l1 = unsafe.getByte(this.parent.leftAddress + this.position);
-                byte l2 = unsafe.getByte(this.parent.leftAddress + this.position + 1);
-                byte r1 = unsafe.getByte(this.parent.rightAddress + this.position);
-                byte r2 = unsafe.getByte(this.parent.rightAddress + this.position + 1);
-
-                if (bigEndian) {
-                    data[0] = ((l1 << 8) | (l2 & 0xFF));
-                    data[1] = ((r1 << 8) | (r2 & 0xFF));
-                } else {
-                    data[0] = ((l2 << 8) | (l1 & 0xFF));
-                    data[1] = ((r2 << 8) | (r1 & 0xFF));
-                }
-                this.position += 2;
-
-                if (this.position >= this.parent.capacity) {
+        public synchronized void skipBytes(long num) {
+            if (this.left == null) return;
+            for (int i = 0; i < num; i++) {
+                this.position++;
+                if (this.position >= this.left.length) {
                     if (this.loop) {
                         this.position = this.loopPosition;
                     } else {
@@ -458,12 +300,35 @@ class MemMusic extends MusicAsset {
         }
 
         @Override
-        public synchronized void dispose() {
-            synchronized (this.parent) {
-                this.playing = false;
-                this.position = this.parent.capacity + 1;
+        public synchronized void nextTwoBytes(int[] data, boolean bigEndian) {
+            if (this.left == null || this.right == null || this.position + 1 >= this.left.length) {
+                data[0] = 0;
+                data[1] = 0;
+                return;
+            }
+            if (bigEndian) {
+                data[0] = ((this.left[this.position] << 8) | (this.left[this.position + 1] & 0xFF));
+                data[1] = ((this.right[this.position] << 8) | (this.right[this.position + 1] & 0xFF));
+            } else {
+                data[0] = ((this.left[this.position + 1] << 8) | (this.left[this.position] & 0xFF));
+                data[1] = ((this.right[this.position + 1] << 8) | (this.right[this.position] & 0xFF));
+            }
+            this.position += 2;
+            if (this.position >= this.left.length) {
+                if (this.loop) {
+                    this.position = this.loopPosition;
+                } else {
+                    this.playing = false;
+                }
             }
         }
 
+        @Override
+        public synchronized void dispose() {
+            this.playing = false;
+            this.position = (this.left != null) ? this.left.length + 1 : 0;
+            this.left = null;
+            this.right = null;
+        }
     }
 }

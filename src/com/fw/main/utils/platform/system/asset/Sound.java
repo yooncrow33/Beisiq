@@ -28,7 +28,7 @@ package com.fw.main.utils.platform.system.asset;
 
 /**
  * The Sound interface  is an abstraction for sound effects.  Sound objects
- * should only be loaded via the TinySound <code>loadSound()</code> functions.
+ * should only be loaded via the InternalSoundModule <code>loadSound()</code> functions.
  * Sounds can be played repeatedly in an overlapping fashion.
  * 
  * @author Finn Kuusisto

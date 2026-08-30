@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +28,7 @@ package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysoun
 
 import java.net.URL;
 
-class StreamInfo {
+public class StreamInfo {
 
 	public final URL URL;
 	public final long NUM_BYTES_PER_CHANNEL;

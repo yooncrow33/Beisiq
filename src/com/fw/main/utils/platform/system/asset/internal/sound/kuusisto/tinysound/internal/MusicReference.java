@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +27,13 @@
 package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal;
 
 /**
- * The MusicReference interface is the Mixer's interface to the audio data of a
+ * The MusicReference interface is the Mixer's interface to the audio data of a 
  * Music object.  MusicReference is an internal interface of the TinySound
  * system and should be of no real concern to the average user of TinySound.
- *
+ * 
  * @author Finn Kuusisto
  */
-interface MusicReference {
+public interface MusicReference {
 
 	/**
 	 * Get the playing setting of this MusicReference.

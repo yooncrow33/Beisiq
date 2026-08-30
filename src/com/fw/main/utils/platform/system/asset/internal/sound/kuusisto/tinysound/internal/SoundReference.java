@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +30,10 @@ package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysoun
  * The SoundReference interface is the Mixer's interface to the audio data of a
  * Sound object.  SoundReference is an internal interface of the TinySound
  * system and should be of no real concern to the average user of TinySound.
- *
+ * 
  * @author Finn Kuusisto
  */
-interface SoundReference {
+public interface SoundReference {
 
 	/**
 	 * Get the ID of the Sound that produced this SoundReference.

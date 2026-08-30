@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,23 +30,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import com.fw.main.utils.platform.system.asset.AssetManager;
-import com.fw.main.utils.platform.system.asset.Music;
-
 /**
  * The StreamMusic class is an implementation of the Music interface that
  * streams audio data from a temporary file to reduce memory overhead.
- *
+ * 
  * @author Finn Kuusisto
  */
-class StreamMusic extends MusicAsset {
-
+public class StreamMusic extends MusicAsset {
+	
 	private URL dataURL;
 	private Mixer mixer;
 	private MusicReference reference;
-
-    AssetManager.AssetType type2 = AssetManager.AssetType.SOUND;
-    public AssetManager.AssetType getAssetType() {return type2;}
 	
 	/**
 	 * Construct a new StreamMusic with the given data and the Mixer with which
@@ -214,7 +207,7 @@ class StreamMusic extends MusicAsset {
 	 */
 	@Override
 	public void setLoopPositionByFrame(int frameIndex) {
-		//getTexture the byte index for a channel
+		//get the byte index for a channel
 		int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
 			InternalSoundModule.FORMAT.getChannels();
 		long byteIndex = (long)(frameIndex * bytesPerChannelForFrame);
@@ -227,7 +220,7 @@ class StreamMusic extends MusicAsset {
 	 */
 	@Override
 	public void setLoopPositionBySeconds(double seconds) {
-		//getTexture the byte index for a channel
+		//get the byte index for a channel
 		int bytesPerChannelForFrame = InternalSoundModule.FORMAT.getFrameSize() /
 			InternalSoundModule.FORMAT.getChannels();
 		long byteIndex = (long)(seconds * InternalSoundModule.FORMAT.getFrameRate()) *
@@ -340,7 +333,7 @@ class StreamMusic extends MusicAsset {
 			this.pan = pan;
 			this.buf = new byte[4];
 			this.skipBuf = new byte[50];
-			//now getTexture the data stream
+			//now get the data stream
 			this.data = this.url.openStream();
 		}
 

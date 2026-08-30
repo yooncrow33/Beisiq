@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,19 +25,20 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 package com.fw.main.utils.platform.system.asset.internal.sound.kuusisto.tinysound.internal;
-import java.util.concurrent.atomic.AtomicBoolean;
+
 
 import javax.sound.sampled.SourceDataLine;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The UpdateRunner class implements Runnable and is what performs automatic
  * updates of the TinySound system.  UpdateRunner is an internal class of the
  * TinySound system and should be of no real concern to the average user of
  * TinySound.
- *
+ * 
  * @author Finn Kuusisto
  */
-class UpdateRunner implements Runnable {
+public class UpdateRunner implements Runnable {
 		
 		private AtomicBoolean running;
 		private SourceDataLine outLine;
@@ -67,7 +67,7 @@ class UpdateRunner implements Runnable {
 			//mark the updater as running
 			this.running.set(true);
 			//1-sec buffer
-			int bufSize = (int) InternalSoundModule.FORMAT.getFrameRate() *
+			int bufSize = (int)InternalSoundModule.FORMAT.getFrameRate() *
 				InternalSoundModule.FORMAT.getFrameSize();
 			byte[] audioBuffer = new byte[bufSize];
 			//only buffer some maximum number of frames each update (25ms)

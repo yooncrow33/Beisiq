@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2012, Finn Kuusisto
- * Copyright (c) 2026, yooncrow33
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,10 +33,10 @@ import java.util.Arrays;
  * allows the use of a dynamically sized array without the extra overhead that
  * comes with List\<Byte\>.  ByteList is an internal class of the TinySound
  * system and should be of no real concern to the average user of TinySound.
- *
+ * 
  * @author Finn Kuusisto
  */
-class ByteList {
+public class ByteList {
 	
 	private int numBytes;
 	private byte[] data;
@@ -82,7 +81,7 @@ class ByteList {
 	
 	/**
 	 * Get a byte at a specified index in this ByteList.
-	 * @param i the index of the byte to getTexture
+	 * @param i the index of the byte to get
 	 * @return the byte at index i
 	 */
 	public byte get(int i) {
